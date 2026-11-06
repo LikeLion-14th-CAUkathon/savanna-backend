@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:~/test-savanna # Home 디렉터리에 저장되는 H2 파일 데이터베이스
+    driver-class-name: org.h2.Driver # H2 드라이버 클래스
+    username: sa # 기본 사용자 이름
+    password: # 기본 비밀번호
+  h2:
+    console:
+      enabled: true # H2 콘솔을 활성화합니다.
+      path: /h2-console # H2 콘솔의 접근 경로
+  jpa:
+    hibernate:
+      ddl-auto: update # Hibernate의 DDL 자동 생성 전략 (update, create, create-drop 등)
+  sql:
+    init:
+      mode: never # 애플리케이션 시작 시 스크립트 초기화 (기본값: embedded)
