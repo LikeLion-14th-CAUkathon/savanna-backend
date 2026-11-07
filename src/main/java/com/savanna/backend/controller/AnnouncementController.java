@@ -1,6 +1,8 @@
 package com.savanna.backend.controller;
 
 import com.savanna.backend.dto.response.AnnouncementResponse;
+import com.savanna.backend.dto.response.AnnouncementDetailResponse;
+import io.swagger.v3.oas.annotations.Operation;
 import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ReceptionStatus;
 import com.savanna.backend.service.AnnouncementService;
@@ -17,6 +19,15 @@ public class AnnouncementController {
 
     private final AnnouncementService announcementService;
 
+    @Operation(summary = "공고 상세 조회", description = "공개 공고의 상세 정보를 조회합니다. 마감된 공개 공고도 조회할 수 있습니다.")
+    @GetMapping("/{announcementId}")
+    public AnnouncementDetailResponse getAnnouncement(
+            @PathVariable("announcementId") Long announcementId
+    ) {
+        return announcementService.getAnnouncement(announcementId);
+    }
+
+    @Operation(summary = "공고 목록 조회",description = "일반 공고 목록을 조회합니다.")
     @GetMapping
     public Page<AnnouncementResponse> getAnnouncements(
             @RequestParam(name = "keyword", required = false)

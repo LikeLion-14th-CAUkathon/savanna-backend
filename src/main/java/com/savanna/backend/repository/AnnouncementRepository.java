@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface AnnouncementRepository
         extends JpaRepository<Announcement, Long>,
         JpaSpecificationExecutor<Announcement> {
+
+    java.util.Optional<Announcement> findByAnnouncementIdAndVisibilityTrue(Long announcementId);
 }

@@ -1,6 +1,9 @@
 package com.savanna.backend.service;
 
 import com.savanna.backend.dto.response.AnnouncementResponse;
+import com.savanna.backend.dto.response.AnnouncementDetailResponse;
+import com.savanna.backend.error.BusinessException;
+import com.savanna.backend.error.ErrorCode;
 import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ReceptionStatus;
 import com.savanna.backend.repository.AnnouncementRepository;
@@ -22,6 +25,14 @@ public class AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
 
+    public AnnouncementDetailResponse getAnnouncement(Long announcementId) {
+        if (announcementId == null || announcementId <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        var announcement = announcementRepository.findByAnnouncementIdAndVisibilityTrue(announcementId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        return AnnouncementDetailResponse.from(announcement);
+    }
     public Page<AnnouncementResponse> getAnnouncements(
             String keyword,
             AnnouncementField field,
