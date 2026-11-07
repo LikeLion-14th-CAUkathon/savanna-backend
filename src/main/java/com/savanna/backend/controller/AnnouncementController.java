@@ -6,6 +6,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ReceptionStatus;
 import com.savanna.backend.service.AnnouncementService;
+import com.savanna.backend.service.AnnouncementEligibilityService;
+import com.savanna.backend.dto.response.AnnouncementEligibilityResponse;
+import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -18,6 +21,17 @@ import org.springframework.web.server.ResponseStatusException;
 public class AnnouncementController {
 
     private final AnnouncementService announcementService;
+    private final AnnouncementEligibilityService announcementEligibilityService;
+
+    @Operation(summary = "공고 참가 조건 확인", description = "결과는 저장하지 않습니다. 팀 연동 전이거나 정보가 불충분하면 TEAM_INFO_REQUIRED를 반환합니다.")
+    @GetMapping("/{announcementId}/eligibility")
+    public AnnouncementEligibilityResponse checkEligibility(
+            @PathVariable("announcementId") Long announcementId,
+            @RequestParam(name = "teamId", required = false) Long teamId,
+            Principal principal
+    ) {
+        return announcementEligibilityService.check(announcementId, teamId, principal);
+    }
 
     @Operation(summary = "공고 상세 조회", description = "공개 공고의 상세 정보를 조회합니다. 마감된 공개 공고도 조회할 수 있습니다.")
     @GetMapping("/{announcementId}")

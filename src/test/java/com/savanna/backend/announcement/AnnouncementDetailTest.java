@@ -25,12 +25,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AnnouncementDetailTest {
     @Autowired AnnouncementRepository repository;
     @Autowired AnnouncementService service;
+    @Autowired com.savanna.backend.service.AnnouncementEligibilityService eligibilityService;
     MockMvc mvc;
 
     @BeforeEach
     void setUp() {
         // Controller + actual service/repository; security filters are outside this test's scope.
-        mvc = MockMvcBuilders.standaloneSetup(new AnnouncementController(service))
+        mvc = MockMvcBuilders.standaloneSetup(new AnnouncementController(service, eligibilityService))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
@@ -46,6 +47,32 @@ class AnnouncementDetailTest {
                 .cost(BigDecimal.ZERO).build());
     }
 
+    @Test
+    void eligibilityWithoutTeamIntegrationRequiresInfoAndDoesNotSave() throws Exception {
+        Announcement announcement = save(null, LocalDateTime.now().plusDays(10));
+        long before = repository.count();
+        mvc.perform(get("/api/v1/announcements/{id}/eligibility", announcement.getAnnouncementId())
+                        .param("teamId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("TEAM_INFO_REQUIRED"))
+                .andExpect(jsonPath("$.teamId").value(1));
+        org.junit.jupiter.api.Assertions.assertEquals(before, repository.count());
+    }
+
+    @Test
+    void eligibilityRejectsPrivateAndInvalidRequests() throws Exception {
+        Announcement announcement = save(null, LocalDateTime.now().plusDays(10));
+        announcement.changeVisibility(false);
+        repository.flush();
+        mvc.perform(get("/api/v1/announcements/{id}/eligibility", announcement.getAnnouncementId()))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/announcements/{id}/eligibility", Long.MAX_VALUE))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/announcements/0/eligibility"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/announcements/1/eligibility").param("teamId", "-1"))
+                .andExpect(status().isBadRequest());
+    }
     @Test
     void returnsPublicAnnouncementDetails() throws Exception {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
