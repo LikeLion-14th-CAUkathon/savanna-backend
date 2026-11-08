@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface ExpeditionRepository extends JpaRepository<Expedition, Long> {
     @EntityGraph(attributePaths = "announcement")
     Optional<Expedition> findByExpeditionId(Long expeditionId);
+
     Optional<Expedition> findByTeamIdAndAnnouncement_AnnouncementId(Long teamId, Long announcementId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
