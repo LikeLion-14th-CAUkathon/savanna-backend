@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -28,6 +29,9 @@ public class OAuth2LoginSuccessHandler
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+
+    @Value("${jwt.refresh-expiration}")
+    private long refreshExpiration;
 
     @Override
     @Transactional
@@ -59,7 +63,7 @@ public class OAuth2LoginSuccessHandler
                 jwtTokenProvider.hashToken(refreshToken);
 
         Instant expiresAt =
-                Instant.now().plus(Duration.ofDays(14));
+                Instant.now().plusMillis(refreshExpiration);
 
         RefreshToken savedToken = new RefreshToken(
                 user,
@@ -76,7 +80,7 @@ public class OAuth2LoginSuccessHandler
                 .secure(false) // 로컬 HTTP 개발 환경
                 .sameSite("Lax")
                 .path("/api/v1/auth")
-                .maxAge(Duration.ofDays(14))
+                .maxAge(Duration.ofMillis(refreshExpiration))
                 .build();
 
         response.addHeader(
