@@ -1,5 +1,6 @@
 package com.savanna.backend.config;
 
+import com.savanna.backend.handler.OAuth2LoginSuccessHandler;
 import com.savanna.backend.service.CustomOidcUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final CustomOidcUserService customOidcUserService;
+    private final OAuth2LoginSuccessHandler successHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http)
@@ -21,8 +23,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
-                                "/join",
                                 "/login",
+                                "/login-success",
                                 "/oauth2/**",
                                 "/login/oauth2/**",
                                 "/error"
@@ -33,6 +35,7 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo -> userInfo
                                 .oidcUserService(customOidcUserService)
                         )
+                        .successHandler(successHandler)
                 );
 
         return http.build();
