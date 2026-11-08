@@ -1,7 +1,13 @@
 package com.savanna.backend.dto.request;
 
-/**
- * Structure placeholder. Fields and behavior will be implemented with the API.
- */
-public class ExpeditionTaskRequest {
-}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+public record ExpeditionTaskRequest(
+        @NotBlank @Size(max = 1000) String title,
+        @NotNull LocalDate dueDate,
+        LocalTime dueTime
+) {}
