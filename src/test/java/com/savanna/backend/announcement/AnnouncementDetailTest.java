@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
@@ -41,10 +40,9 @@ class AnnouncementDetailTest {
                 .applicationStartsAt(start).deadline(deadline)
                 .enrollmentRequirement("대학생").minMembers(2).maxMembers(5)
                 .region("서울").theme("환경").evaluationCriteria("독창성")
-                .submissionRequirements("기획서 PDF").restrictions("중복 출품 불가")
-                .benefits("멘토링").contactEmail("help@example.com")
+                .submissionRequirements("기획서 PDF")
                 .sourceUrl("https://example.com/notice").applyUrl("https://example.com/apply")
-                .cost(BigDecimal.ZERO).build());
+                .build());
     }
 
     @Test
@@ -88,12 +86,12 @@ class AnnouncementDetailTest {
                 .andExpect(jsonPath("$.theme").value("환경"))
                 .andExpect(jsonPath("$.evaluationCriteria").value("독창성"))
                 .andExpect(jsonPath("$.submissionRequirements").value("기획서 PDF"))
-                .andExpect(jsonPath("$.restrictions").value("중복 출품 불가"))
-                .andExpect(jsonPath("$.benefits").value("멘토링"))
-                .andExpect(jsonPath("$.contactEmail").value("help@example.com"))
+                .andExpect(jsonPath("$.restrictions").doesNotExist())
+                .andExpect(jsonPath("$.benefits").doesNotExist())
+                .andExpect(jsonPath("$.contactEmail").doesNotExist())
                 .andExpect(jsonPath("$.sourceUrl").value("https://example.com/notice"))
                 .andExpect(jsonPath("$.applyUrl").value("https://example.com/apply"))
-                .andExpect(jsonPath("$.cost").value(0))
+                .andExpect(jsonPath("$.cost").doesNotExist())
                 .andExpect(jsonPath("$.receptionStatus").value("OPEN"));
     }
 

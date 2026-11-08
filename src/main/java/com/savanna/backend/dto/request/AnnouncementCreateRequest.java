@@ -4,7 +4,6 @@ import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ApplicationMethod;
 import jakarta.validation.constraints.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record AnnouncementCreateRequest(
@@ -39,22 +38,12 @@ public record AnnouncementCreateRequest(
         String theme,
         ApplicationMethod applicationMethod,
         String submissionRequirements,
-        String restrictions,
-        String benefits,
-
-        @Email
-        @Size(max = 255)
-        String contactEmail,
 
         @Size(max = 2000)
         String sourceUrl,
 
         @Size(max = 2000)
-        String applyUrl,
-
-        @DecimalMin("0")
-        @Digits(integer = 15, fraction = 0)
-        BigDecimal cost
+        String applyUrl
 ) {
     @AssertTrue(message = "접수 마감은 접수 시작보다 늦어야 합니다.")
     public boolean isApplicationPeriodValid() {

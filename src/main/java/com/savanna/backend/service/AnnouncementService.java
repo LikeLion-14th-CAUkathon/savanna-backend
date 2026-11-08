@@ -101,12 +101,8 @@ public class AnnouncementService {
                 .theme(request.theme())
                 .applicationMethod(request.applicationMethod())
                 .submissionRequirements(request.submissionRequirements())
-                .restrictions(request.restrictions())
-                .benefits(request.benefits())
-                .contactEmail(request.contactEmail())
                 .sourceUrl(request.sourceUrl())
                 .applyUrl(request.applyUrl())
-                .cost(request.cost())
                 .build();
 
         return AnnouncementResponse.from(

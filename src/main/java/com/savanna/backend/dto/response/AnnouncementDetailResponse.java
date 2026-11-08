@@ -5,7 +5,6 @@ import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ApplicationMethod;
 import com.savanna.backend.enums.ReceptionStatus;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
@@ -25,12 +24,8 @@ public record AnnouncementDetailResponse(
         String evaluationCriteria,
         ApplicationMethod applicationMethod,
         String submissionRequirements,
-        String restrictions,
-        String benefits,
-        String contactEmail,
         String sourceUrl,
-        String applyUrl,
-        BigDecimal cost
+        String applyUrl
 ) {
     public static AnnouncementDetailResponse from(Announcement announcement) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
@@ -50,9 +45,8 @@ public record AnnouncementDetailResponse(
                 announcement.getEnrollmentRequirement(), announcement.getMinMembers(),
                 announcement.getMaxMembers(), announcement.getRegion(), announcement.getTheme(),
                 announcement.getEvaluationCriteria(), announcement.getApplicationMethod(),
-                announcement.getSubmissionRequirements(), announcement.getRestrictions(),
-                announcement.getBenefits(), announcement.getContactEmail(),
-                announcement.getSourceUrl(), announcement.getApplyUrl(), announcement.getCost()
+                announcement.getSubmissionRequirements(),
+                announcement.getSourceUrl(), announcement.getApplyUrl()
         );
     }
 }
