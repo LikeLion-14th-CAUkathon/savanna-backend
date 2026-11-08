@@ -112,7 +112,11 @@ public class SecurityConfig {
                                 "/login-success",
                                 "/oauth2/**",
                                 "/login/oauth2/**",
-                                "/error"
+                                "/error",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

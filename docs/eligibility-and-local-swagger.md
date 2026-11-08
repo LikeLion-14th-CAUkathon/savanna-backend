@@ -1,40 +1,8 @@
 # 로컬 Swagger 및 참가 조건 확인
 
-## local 프로필에서 인증 없이 테스트하는 방법
+## Swagger 테스트
 
-로그인 담당 코드는 변경하지 않았고, 아래는 적용 예시입니다. 현재 저장소에는 사용자 정의 SecurityFilterChain이 없습니다.
-`config/LocalSecurityConfig.java`에 다음 설정을 추가하면 local에서만 적용됩니다.
-
-```java
-package com.savanna.backend.config;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.SecurityFilterChain;
-
-@Configuration
-@Profile("local")
-public class LocalSecurityConfig {
-    @Bean
-    SecurityFilterChain localSecurityFilterChain(HttpSecurity http) throws Exception {
-        return http.authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.GET,
-                        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
-                        "/api/v1/announcements", "/api/v1/announcements/*",
-                        "/api/v1/announcements/*/eligibility").permitAll()
-                .anyRequest().denyAll())
-                .build();
-    }
-}
-```
-
-이 예시는 local에서 위 GET만 허용하고 다른 요청은 거부합니다. CSRF 전체 해제나 모든 API 허용은 하지 않습니다.
-IntelliJ Run Configuration의 Active profiles에 `local`을 넣거나 Program arguments에 `--spring.profiles.active=local`을 넣고 재시작합니다.
-접속 주소는 `http://localhost:8080/swagger-ui/index.html`입니다.
-실제 로그인 담당 SecurityFilterChain이 추가되면 위 설정을 그대로 중복 등록하지 말고, 담당자와 프로필 및 체인 적용 범위를 맞춰야 합니다.
+인증 우회용 LocalSecurityConfig는 제거했습니다. 실제 JWT 테스트 방법은 [Swagger JWT 테스트](swagger-jwt-testing.md)를 참고하세요.
 
 ## 참가 조건 API
 
