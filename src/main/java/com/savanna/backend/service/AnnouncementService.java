@@ -1,5 +1,7 @@
 package com.savanna.backend.service;
 
+import com.savanna.backend.domain.Announcement;
+import com.savanna.backend.dto.request.AnnouncementCreateRequest;
 import com.savanna.backend.dto.response.AnnouncementResponse;
 import com.savanna.backend.dto.response.AnnouncementDetailResponse;
 import com.savanna.backend.error.BusinessException;
@@ -79,5 +81,36 @@ public class AnnouncementService {
         return announcementRepository
                 .findAll(specification, pageRequest)
                 .map(AnnouncementResponse::from);
+    }
+
+    @Transactional
+    public AnnouncementResponse createAnnouncement(
+            AnnouncementCreateRequest request
+    ) {
+        Announcement announcement = Announcement.builder()
+                .title(request.title().trim())
+                .applicationStartsAt(request.applicationStartsAt())
+                .deadline(request.deadline())
+                .field(request.field())
+                .host(request.host().trim())
+                .minMembers(request.minMembers())
+                .maxMembers(request.maxMembers())
+                .evaluationCriteria(request.evaluationCriteria())
+                .enrollmentRequirement(request.enrollmentRequirement())
+                .region(request.region())
+                .theme(request.theme())
+                .applicationMethod(request.applicationMethod())
+                .submissionRequirements(request.submissionRequirements())
+                .restrictions(request.restrictions())
+                .benefits(request.benefits())
+                .contactEmail(request.contactEmail())
+                .sourceUrl(request.sourceUrl())
+                .applyUrl(request.applyUrl())
+                .cost(request.cost())
+                .build();
+
+        return AnnouncementResponse.from(
+                announcementRepository.save(announcement)
+        );
     }
 }

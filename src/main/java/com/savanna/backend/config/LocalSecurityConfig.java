@@ -39,7 +39,14 @@ public class LocalSecurityConfig {
                         "/api/v1/announcements",
                         "/api/v1/announcements/*"
                 ).permitAll()
+                .requestMatchers(
+                        HttpMethod.POST,
+                        "/api/v1/announcements"
+                ).permitAll()
                 .anyRequest().denyAll()
+        );
+        http.csrf(csrf -> csrf
+                .ignoringRequestMatchers("/api/v1/announcements")
         );
 
         return http.build();
