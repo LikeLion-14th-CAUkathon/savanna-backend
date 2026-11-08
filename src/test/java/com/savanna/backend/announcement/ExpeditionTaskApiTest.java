@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@Import(ExpeditionApiTest.TeamConfig.class)
+@Import(ExpeditionTestTeamConfig.class)
 @Transactional
 class ExpeditionTaskApiTest {
     @Autowired ExpeditionTaskService service;
