@@ -4,6 +4,7 @@ import com.savanna.backend.dto.request.ExpeditionScheduleRequest;
 import com.savanna.backend.dto.request.ExpeditionStageRequest;
 import com.savanna.backend.dto.response.ExpeditionResponse;
 import com.savanna.backend.dto.response.ExpeditionStageHistoryResponse;
+import com.savanna.backend.dto.response.ExpeditionProposalResponse;
 import com.savanna.backend.service.ExpeditionService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -17,6 +18,13 @@ import java.security.Principal;
 @RequestMapping("/api/v1/expeditions")
 public class ExpeditionController {
     private final ExpeditionService expeditionService;
+
+    @Operation(summary = "원정의 제안과 응답 현황 조회", description = "해당 팀원이 원정의 제안과 수신자별 응답·집계를 조회합니다.")
+    @GetMapping("/{expeditionId}/proposals")
+    public java.util.List<ExpeditionProposalResponse> getProposals(
+            @PathVariable("expeditionId") Long id, Principal principal) {
+        return expeditionService.getProposals(id, principal);
+    }
 
     @Operation(summary = "준비 정보 조회")
     @GetMapping("/{expeditionId}")

@@ -8,7 +8,7 @@
 
 `GET /api/v1/announcements/{announcementId}/eligibility?teamId=1`
 
-teamId는 선택입니다. 생략 시 팀 조회 연동 구현이 인증 사용자의 현재 팀을 선택합니다.
+teamId는 선택입니다. 생략 시 가입한 팀이 정확히 하나일 때 자동 선택합니다. 팀이 없거나 여러 개면 TEAM_INFO_REQUIRED를 반환하므로 teamId를 지정해야 합니다.
 결과는 저장하지 않습니다. 공개 공고만 조회하며 비공개·없는 공고는 404, 잘못된 ID는 400입니다.
 
 - SATISFIED: 자동 비교한 모든 조건 충족
@@ -22,8 +22,6 @@ teamId는 선택입니다. 생략 시 팀 조회 연동 구현이 인증 사용�
 
 ## 현재 팀 연동의 제한
 
-Team·TeamMember 모델 및 조회 코드가 없어 EligibilityTeamReader 인터페이스를 두었습니다.
-팀 담당 구현은 인증 Principal과 teamId를 받아 접근 권한을 검증하고 실제 가입된 팀원 전체의 재학 상태를 반환해야 합니다.
-해당 Spring 빈이 없거나 인증 사용자가 없으면 TEAM_INFO_REQUIRED를 반환합니다.
-따라서 현재 실행 환경에서는 실제 팀으로 SATISFIED/MISMATCH를 확인하려면 이 연동 구현이 필요합니다.
-로컬 익명 요청에 임의의 사용자나 팀 정보를 만들어 넣지 않습니다.
+TeamAccessService가 EligibilityTeamReader를 구현하여 실제 TeamMember와 User의 재학 상태를 조회합니다.
+JWT 인증의 Long 사용자 ID와 DB 사용자 존재 여부를 확인합니다. 지정한 팀이 없으면 404, 다른 팀이면 403입니다.
+재학 상태가 없는 팀원도 인원 집계에 포함하고, 재학 조건은 확인 필요로 반환합니다.

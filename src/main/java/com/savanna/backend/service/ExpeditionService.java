@@ -16,19 +16,53 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.security.Principal;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import com.savanna.backend.dto.response.TeamExpeditionResponse;
+import com.savanna.backend.enums.ProposalRecipientStatus;
+import com.savanna.backend.repository.ProposalRecipientRepository;
+import com.savanna.backend.repository.ProposalRepository;
+import com.savanna.backend.dto.response.ExpeditionProposalResponse;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ExpeditionService {
     private final ExpeditionRepository expeditionRepository;
+    private final ProposalRepository proposalRepository;
+    private final ProposalRecipientRepository recipientRepository;
     private final ExpeditionStageHistoryRepository historyRepository;
     private final ObjectProvider<ExpeditionTeamAccess> teamAccess;
 
+    public List<TeamExpeditionResponse> getTeamExpeditions(Long teamId, Principal principal) {
+        if (teamId == null || teamId <= 0) invalid();
+        authorize(principal, teamId, false);
+        var expeditions = expeditionRepository.findTeamExpeditions(teamId);
+        if (expeditions.isEmpty()) return List.of();
+        Map<Long, Long> joined = recipientRepository
+                .countDistinctUsersByTeamAndStatus(teamId, ProposalRecipientStatus.JOINED).stream()
+                .collect(Collectors.toMap(
+                        ProposalRecipientRepository.ExpeditionJoinedCount::getExpeditionId,
+                        ProposalRecipientRepository.ExpeditionJoinedCount::getJoinedCount));
+        return expeditions.stream().map(e -> TeamExpeditionResponse.from(e,
+                joined.getOrDefault(e.getExpeditionId(), 0L))).toList();
+    }
     public ExpeditionResponse getExpedition(Long id, Principal principal) {
         var e = find(id, false);
         authorize(principal, e.getTeamId(), false);
         return ExpeditionResponse.from(e);
+    }
+
+    public List<ExpeditionProposalResponse> getProposals(Long id, Principal principal) {
+        var expedition = find(id, false);
+        authorize(principal, expedition.getTeamId(), false);
+        var proposals = proposalRepository.findAllByExpedition_ExpeditionIdOrderByCreatedAtDescProposalIdDesc(id);
+        if (proposals.isEmpty()) return List.of();
+        var recipients = recipientRepository.findAllByProposal_Expedition_ExpeditionIdOrderByProposalRecipientIdAsc(id)
+                .stream().collect(Collectors.groupingBy(r -> r.getProposal().getProposalId()));
+        return proposals.stream().map(proposal -> ExpeditionProposalResponse.from(proposal,
+                recipients.getOrDefault(proposal.getProposalId(), List.of()))).toList();
     }
 
     @Transactional
