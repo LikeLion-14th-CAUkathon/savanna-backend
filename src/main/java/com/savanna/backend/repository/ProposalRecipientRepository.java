@@ -7,6 +7,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ProposalRecipientRepository extends JpaRepository<ProposalRecipient, Long> {
+    @EntityGraph(attributePaths = {"user", "proposal"})
+    List<ProposalRecipient> findAllByProposal_Expedition_ExpeditionIdOrderByProposalRecipientIdAsc(Long expeditionId);
+
     @EntityGraph(attributePaths = "user")
     List<ProposalRecipient> findAllByProposal_ProposalIdOrderByProposalRecipientIdAsc(Long proposalId);
 

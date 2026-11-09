@@ -22,12 +22,15 @@ import java.util.stream.Collectors;
 import com.savanna.backend.dto.response.TeamExpeditionResponse;
 import com.savanna.backend.enums.ProposalRecipientStatus;
 import com.savanna.backend.repository.ProposalRecipientRepository;
+import com.savanna.backend.repository.ProposalRepository;
+import com.savanna.backend.dto.response.ExpeditionProposalResponse;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ExpeditionService {
     private final ExpeditionRepository expeditionRepository;
+    private final ProposalRepository proposalRepository;
     private final ProposalRecipientRepository recipientRepository;
     private final ExpeditionStageHistoryRepository historyRepository;
     private final ObjectProvider<ExpeditionTeamAccess> teamAccess;
@@ -49,6 +52,17 @@ public class ExpeditionService {
         var e = find(id, false);
         authorize(principal, e.getTeamId(), false);
         return ExpeditionResponse.from(e);
+    }
+
+    public List<ExpeditionProposalResponse> getProposals(Long id, Principal principal) {
+        var expedition = find(id, false);
+        authorize(principal, expedition.getTeamId(), false);
+        var proposals = proposalRepository.findAllByExpedition_ExpeditionIdOrderByCreatedAtDescProposalIdDesc(id);
+        if (proposals.isEmpty()) return List.of();
+        var recipients = recipientRepository.findAllByProposal_Expedition_ExpeditionIdOrderByProposalRecipientIdAsc(id)
+                .stream().collect(Collectors.groupingBy(r -> r.getProposal().getProposalId()));
+        return proposals.stream().map(proposal -> ExpeditionProposalResponse.from(proposal,
+                recipients.getOrDefault(proposal.getProposalId(), List.of()))).toList();
     }
 
     @Transactional

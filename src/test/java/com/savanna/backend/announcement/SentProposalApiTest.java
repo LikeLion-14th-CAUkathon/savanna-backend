@@ -143,4 +143,82 @@ class SentProposalApiTest {
                     .andExpect(status().isBadRequest());
         }
     }
+
+    String expeditionPath(Expedition expedition) {
+        return "/api/v1/expeditions/" + expedition.getExpeditionId() + "/proposals";
+    }
+
+    @Test void expeditionTeamMemberCanReadOtherSendersProposalAndOnlyItsResponses() throws Exception {
+        var proposal = proposal(sender);
+        var joined = recipient(proposal, other, ProposalRecipientStatus.JOINED);
+        recipient(proposal, user("expedition-declined"), ProposalRecipientStatus.DECLINED);
+        recipient(proposal, user("expedition-pending"), ProposalRecipientStatus.PENDING);
+        recipient(proposal(sender), other, ProposalRecipientStatus.JOINED);
+        // 마감·비공개·제출 완료 여부와 관계없이 기존 원정의 이력을 제공합니다.
+        proposal.getExpedition().getAnnouncement().changeVisibility(false);
+        proposal.getExpedition().changeStage(ExpeditionStage.SUBMITTED);
+        em.flush();
+        em.clear();
+        mvc.perform(get(expeditionPath(proposal.getExpedition())).header("Authorization", bearer(other)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].proposalId").value(proposal.getProposalId()))
+                .andExpect(jsonPath("$[0].senderId").value(sender.getUserId()))
+                .andExpect(jsonPath("$[0].senderName").value("sender"))
+                .andExpect(jsonPath("$[0].message").value("참가해요"))
+                .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
+                .andExpect(jsonPath("$[0].totalCount").value(3))
+                .andExpect(jsonPath("$[0].joinedCount").value(1))
+                .andExpect(jsonPath("$[0].declinedCount").value(1))
+                .andExpect(jsonPath("$[0].pendingCount").value(1))
+                .andExpect(jsonPath("$[0].recipients.length()").value(3))
+                .andExpect(jsonPath("$[0].recipients[0].proposalRecipientId").value(joined.getProposalRecipientId()))
+                .andExpect(jsonPath("$[0].recipients[0].name").value("other"))
+                .andExpect(jsonPath("$[0].recipients[0].status").value("JOINED"))
+                .andExpect(jsonPath("$[0].recipients[0].respondedAt").isNotEmpty())
+                .andExpect(jsonPath("$[0].recipients[2].respondedAt").isEmpty());
+        org.junit.jupiter.api.Assertions.assertNull(em.find(ProposalRecipient.class, joined.getProposalRecipientId()).getReadAt());
+    }
+
+    @Test void expeditionWithoutProposalReturnsEmptyAndWithoutRecipientsReturnsZero() throws Exception {
+        var proposal = proposal(sender);
+        mvc.perform(get(expeditionPath(proposal.getExpedition())).header("Authorization", bearer(other)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].totalCount").value(0))
+                .andExpect(jsonPath("$[0].joinedCount").value(0)).andExpect(jsonPath("$[0].declinedCount").value(0))
+                .andExpect(jsonPath("$[0].pendingCount").value(0)).andExpect(jsonPath("$[0].recipients").isEmpty());
+        // 팀·공고 중복 제약을 유지하면서 다른 팀의 빈 원정을 만듭니다.
+        var anotherTeam = new Team("다른 팀", "프로젝트", "소개", null, null, null);
+        em.persist(anotherTeam);
+        em.persist(new TeamMember(other, anotherTeam, TeamRole.MEMBER));
+        var empty = new Expedition(anotherTeam.getTeamId(), proposal.getExpedition().getAnnouncement());
+        em.persist(empty);
+        em.flush();
+        mvc.perform(get(expeditionPath(empty)).header("Authorization", bearer(other)))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+    }
+
+    @Test void expeditionResponsesRequireTeamMembershipEvenForRecipientAndForEmptyExpedition() throws Exception {
+        var proposal = proposal(sender);
+        var outsider = user("expedition-outsider");
+        recipient(proposal, outsider, ProposalRecipientStatus.PENDING);
+        mvc.perform(get(expeditionPath(proposal.getExpedition())).header("Authorization", bearer(outsider)))
+                .andExpect(status().isForbidden());
+        var emptyTeam = new Team("빈 팀", "프로젝트", "소개", null, null, null);
+        em.persist(emptyTeam);
+        var empty = new Expedition(emptyTeam.getTeamId(), proposal.getExpedition().getAnnouncement());
+        em.persist(empty);
+        em.flush();
+        mvc.perform(get(expeditionPath(empty)).header("Authorization", bearer(other)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test void expeditionProposalEndpointRejectsAnonymousMissingAndInvalidIds() throws Exception {
+        var proposal = proposal(sender);
+        mvc.perform(get(expeditionPath(proposal.getExpedition()))).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/expeditions/9223372036854775807/proposals").header("Authorization", bearer(sender)))
+                .andExpect(status().isNotFound());
+        for (String id : new String[]{"0", "-1", "invalid"}) {
+            mvc.perform(get("/api/v1/expeditions/" + id + "/proposals").header("Authorization", bearer(sender)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 }

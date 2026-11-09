@@ -1,5 +1,7 @@
 # Expedition API
 
+- GET /api/v1/expeditions/{expeditionId}/proposals: 해당 팀원이 제안과 수신자별 응답·집계를 조회합니다. 상세 응답은 [원정 제안 API](expedition-proposals-api.md)를 참고하세요.
+
 - GET /api/v1/expeditions/{expeditionId}: 공고 요약, 단계, 목표일, 제출 완료 여부
 - PATCH /api/v1/expeditions/{expeditionId}/stage: {"stage":"DRAFT"} 등. 단계 변경과 이력을 같은 트랜잭션으로 저장합니다. 동일 단계 요청은 이력을 만들지 않습니다.
 - GET /api/v1/expeditions/{expeditionId}/stage-histories?page=0&size=10: 최신순 이력. size는 1~100.
