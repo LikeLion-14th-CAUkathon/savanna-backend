@@ -53,10 +53,4 @@ class AnnouncementEligibilityEvaluatorTest {
                 evaluator.evaluate(announcement("재학생 중 서울 소재 대학의 디자인 전공자"), 1L, team).status());
     }
 
-    @Test void additionalRestrictionsRequireReview() {
-        var a = Announcement.builder().minMembers(2).enrollmentRequirement("재학생")
-                .restrictions("수상 경력자 제외").build();
-        var team = new TeamSnapshot(1L, List.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ENROLLED));
-        assertEquals(TEAM_INFO_REQUIRED, evaluator.evaluate(a, 1L, team).status());
-    }
 }

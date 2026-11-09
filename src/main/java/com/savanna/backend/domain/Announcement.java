@@ -8,7 +8,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -70,17 +69,6 @@ public class Announcement {
     @Column(columnDefinition = "TEXT")
     private String submissionRequirements;
 
-    // 제한사항
-    @Column(columnDefinition = "TEXT")
-    private String restrictions;
-
-    // 상금·혜택
-    @Column(columnDefinition = "TEXT")
-    private String benefits;
-
-    // 문의 이메일
-    private String contactEmail;
-
     // 공고 원문 링크
     @Column(length = 2000)
     private String sourceUrl;
@@ -88,10 +76,6 @@ public class Announcement {
     // 지원 사이트 링크
     @Column(length = 2000)
     private String applyUrl;
-
-    // 참가비: 원화 기준, 무료는 0, 미확인은 null
-    @Column(precision = 15, scale = 0)
-    private BigDecimal cost;
 
     // 공개 여부
     @Column(nullable = false)
@@ -118,12 +102,8 @@ public class Announcement {
             String theme,
             ApplicationMethod applicationMethod,
             String submissionRequirements,
-            String restrictions,
-            String benefits,
-            String contactEmail,
             String sourceUrl,
-            String applyUrl,
-            BigDecimal cost
+            String applyUrl
     ) {
         this.title = title;
         this.applicationStartsAt = applicationStartsAt;
@@ -138,12 +118,8 @@ public class Announcement {
         this.theme = theme;
         this.applicationMethod = applicationMethod;
         this.submissionRequirements = submissionRequirements;
-        this.restrictions = restrictions;
-        this.benefits = benefits;
-        this.contactEmail = contactEmail;
         this.sourceUrl = sourceUrl;
         this.applyUrl = applyUrl;
-        this.cost = cost;
     }
 
     public void changeVisibility(boolean visibility) {

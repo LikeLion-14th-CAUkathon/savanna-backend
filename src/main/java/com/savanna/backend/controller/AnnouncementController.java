@@ -1,5 +1,6 @@
 package com.savanna.backend.controller;
 
+import com.savanna.backend.dto.request.AnnouncementCreateRequest;
 import com.savanna.backend.dto.response.AnnouncementResponse;
 import com.savanna.backend.dto.response.AnnouncementDetailResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,10 +9,15 @@ import com.savanna.backend.enums.ReceptionStatus;
 import com.savanna.backend.service.AnnouncementService;
 import com.savanna.backend.service.AnnouncementEligibilityService;
 import com.savanna.backend.dto.response.AnnouncementEligibilityResponse;
+
+import java.net.URI;
 import java.security.Principal;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -73,5 +79,20 @@ public class AnnouncementController {
                 page,
                 size
         );
+    }
+    @Operation(summary = "공고 생성 조회",description = "공고 목록 조회 테스트 목적입니다")
+    @PostMapping
+    public ResponseEntity<AnnouncementResponse> createAnnouncement(
+            @Valid @RequestBody AnnouncementCreateRequest request
+    ) {
+        AnnouncementResponse response =
+                announcementService.createAnnouncement(request);
+
+        return ResponseEntity
+                .created(URI.create(
+                        "/api/v1/announcements/"
+                                + response.announcementId()
+                ))
+                .body(response);
     }
 }
