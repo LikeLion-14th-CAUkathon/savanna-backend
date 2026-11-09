@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProposalRepository
         extends JpaRepository<Proposal, Long> {
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"expedition", "expedition.announcement"})
+    java.util.List<Proposal> findAllBySender_UserIdOrderByCreatedAtDescProposalIdDesc(Long userId);
 }

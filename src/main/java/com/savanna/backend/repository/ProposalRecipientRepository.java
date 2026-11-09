@@ -7,6 +7,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ProposalRecipientRepository extends JpaRepository<ProposalRecipient, Long> {
+    @EntityGraph(attributePaths = "user")
+    List<ProposalRecipient> findAllByProposal_ProposalIdOrderByProposalRecipientIdAsc(Long proposalId);
+
     long countByUser_UserIdAndStatus(Long userId, ProposalRecipientStatus status);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
