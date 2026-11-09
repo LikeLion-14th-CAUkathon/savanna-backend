@@ -1,7 +1,8 @@
 package com.savanna.backend.repository;
 
-/**
- * Structure placeholder. Fields and behavior will be implemented with the API.
- */
-public interface ProposalRepository {
+import com.savanna.backend.domain.Proposal;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProposalRepository
+        extends JpaRepository<Proposal, Long> {
 }

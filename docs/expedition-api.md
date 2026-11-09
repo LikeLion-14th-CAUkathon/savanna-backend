@@ -8,8 +8,8 @@
 기존 stage/schedule 변경은 비관적 쓰기 잠금을 사용합니다.
 조회 및 수정 전에 ExpeditionTeamAccess가 팀 권한을 검증하고 실제 사용자 ID를 반환해야 합니다.
 미인증 요청은 401, 팀 권한 연동 빈이 없거나 권한이 없으면 403입니다.
-현재 Team/TeamMember 구현이 없어 실제 사용자 권한 연동은 남아 있습니다. 테스트 전용 구현만 테스트에 등록했습니다.
+TeamAccessService가 실제 TeamMember 소속을 검증합니다. 팀원은 조회·단계·일정·공지·체크리스트 변경이 가능하며, 다른 팀은 403, 없는 팀은 404입니다.
 Swagger JWT 전환 과정에서 LocalSecurityConfig를 제거했습니다. 로그인·초대 로직은 유지하며, 원정 API는 실제 JWT 인증과 ExpeditionTeamAccess 권한 연동이 필요합니다.
 
-Expedition 생성은 추후 C04 제안 전송 트랜잭션에서 체크리스트 생성과 함께 처리합니다.
-팀별 원정 목록 및 합류 인원, 제안·응답 현황은 제안/수신자 구현과 함께 연결할 예정이며 이번 범위에 포함되지 않습니다.
+Expedition은 공고 참여 제안 전송 트랜잭션에서 생성됩니다. 기본 체크리스트 자동 생성은 아직 구현되어 있지 않습니다.
+팀별 원정 목록과 합류 인원은 GET /api/v1/teams/{teamId}/expeditions로 조회합니다. 제안 응답은 PATCH /api/v1/proposal-recipients/{proposalRecipientId}/response로 처리합니다.

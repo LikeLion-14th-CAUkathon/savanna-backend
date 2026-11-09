@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ExpeditionApiTest {
     @TestConfiguration
     static class TeamConfig {
-        @Bean ExpeditionTeamAccess testTeamAccess() {
+        @Bean @Primary ExpeditionTeamAccess testTeamAccess() {
             return (principal, teamId, write) -> {
                 if (!"member".equals(principal.getName()) || teamId != 1L)
                     throw new BusinessException(ErrorCode.FORBIDDEN);

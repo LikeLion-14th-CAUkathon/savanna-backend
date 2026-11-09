@@ -9,8 +9,10 @@ import java.util.List;
 public interface TeamMemberRepository
         extends JpaRepository<TeamMember, Long> {
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "team")
     List<TeamMember> findAllByUser_UserId(Long userId);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "user")
     List<TeamMember> findAllByTeam_TeamId(Long teamId);
 
     boolean existsByUser_UserIdAndTeam_TeamId(
