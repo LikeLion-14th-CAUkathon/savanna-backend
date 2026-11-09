@@ -17,6 +17,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @RequiredArgsConstructor
@@ -69,6 +70,10 @@ public class SecurityConfig {
                                 "/api/v1/auth/csrf",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/invitations/*"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
