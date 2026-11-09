@@ -43,9 +43,6 @@ public class AnnouncementEligibilityEvaluator {
                 conditions.add(new Condition("ENROLLMENT", SATISFIED, "모든 팀원이 재학 상태 조건을 충족합니다."));
             }
         }
-        if (announcement.getRestrictions() != null && !announcement.getRestrictions().isBlank()) {
-            conditions.add(new Condition("RESTRICTIONS", TEAM_INFO_REQUIRED, "공고의 추가 제한사항을 확인해야 합니다."));
-        }
         EligibilityStatus status = conditions.stream().anyMatch(c -> c.status() == MISMATCH)
                 ? MISMATCH : conditions.stream().anyMatch(c -> c.status() == TEAM_INFO_REQUIRED)
                 ? TEAM_INFO_REQUIRED : SATISFIED;

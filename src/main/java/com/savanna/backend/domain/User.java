@@ -55,4 +55,17 @@ public class User {
     public void completeOnboarding() {
         this.onboardingCompleted = true;
     }
+
+
+    public void updateProfile(
+            String name,
+            String universityName,
+            EnrollmentStatus enrollmentStatus
+    ) {
+        this.name = name;
+        this.universityName = universityName;
+        this.enrollmentStatus = enrollmentStatus;
+        this.onboardingCompleted = true;
+    }
+
 }
