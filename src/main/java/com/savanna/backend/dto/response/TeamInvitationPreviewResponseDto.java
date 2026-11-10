@@ -27,9 +27,11 @@ public record TeamInvitationPreviewResponseDto(
                 team.getProjectIntro(),
                 currentMemberCount,
                 currentMemberCount + 1,
-                invitation.getTokenSeed() != null
-                        ? null
-                        : invitation.getExpiresAt()
+
+        invitation.getTokenSeed() != null
+                ? null
+                : invitation.getExpiresAt()
+
         );
     }
 }

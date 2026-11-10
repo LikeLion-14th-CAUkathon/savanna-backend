@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 
 @TestConfiguration
 public class ExpeditionTestTeamConfig {
-    @Bean ExpeditionTeamAccess testTeamAccess() {
+    @Bean @org.springframework.context.annotation.Primary ExpeditionTeamAccess testTeamAccess() {
         return (principal, teamId, write) -> {
             if (!"member".equals(principal.getName()) || !Long.valueOf(1).equals(teamId))
                 throw new BusinessException(ErrorCode.FORBIDDEN);

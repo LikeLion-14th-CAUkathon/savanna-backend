@@ -62,7 +62,10 @@ public class UserService {
         );
 
         // 2. 활동 지역 중복 제거
-        List<String> regions = request.regions()
+        // 선택하지 않은 경우 빈 목록으로 처리
+        List<String> regions = request.regions() == null
+                ? List.of()
+                : request.regions()
                 .stream()
                 .map(String::trim)
                 .distinct()
