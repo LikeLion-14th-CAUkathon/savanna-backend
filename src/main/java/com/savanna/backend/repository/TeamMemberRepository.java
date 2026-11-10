@@ -20,6 +20,8 @@ public interface TeamMemberRepository
             Long teamId
     );
 
+    long countByTeam_TeamId(Long teamId);
+
     Optional<TeamMember> findByUser_UserIdAndTeam_TeamId(
             Long userId,
             Long teamId

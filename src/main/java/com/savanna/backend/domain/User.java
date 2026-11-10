@@ -32,10 +32,18 @@ public class User {
     @Column(nullable = false)
     private boolean onboardingCompleted = false;
 
-    // 구글 로그인 성공 시 사용자 생성
     public User(String email, String googleSub) {
+        this(email, googleSub, null);
+    }
+
+    public User(
+            String email,
+            String googleSub,
+            String googleName
+    ) {
         this.email = email;
         this.googleSub = googleSub;
+        this.name = googleName;
     }
 
     // 프로필 수정
@@ -56,7 +64,6 @@ public class User {
         this.onboardingCompleted = true;
     }
 
-
     public void updateProfile(
             String name,
             String universityName,
@@ -67,5 +74,4 @@ public class User {
         this.enrollmentStatus = enrollmentStatus;
         this.onboardingCompleted = true;
     }
-
 }

@@ -30,12 +30,13 @@ public class CustomOidcUserService
 
         String googleSub = oidcUser.getSubject();
         String email = oidcUser.getEmail();
+        String googleName = oidcUser.getFullName();
 
         // 기존 회원 조회, 없으면 신규 USER 생성
         userRepository.findByGoogleSub(googleSub)
                 .orElseGet(() ->
                         userRepository.save(
-                                new User(email, googleSub)
+                                new User(email, googleSub, googleName)
                         )
                 );
 
