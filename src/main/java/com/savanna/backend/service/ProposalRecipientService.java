@@ -59,4 +59,35 @@ public class ProposalRecipientService {
         }
         return ProposalRecipientResponse.from(recipient);
     }
+
+    @Transactional
+    public ReceivedProposalResponse markAsRead(
+            Long userId,
+            Long recipientId
+    ) {
+        // 1. 로그인 사용자 확인
+        requireUser(userId);
+
+        // 2. 요청 ID 검증
+        if (recipientId == null || recipientId <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        // 3. 제안 수신 기록 조회
+        var recipient = recipients.findForResponse(recipientId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+                );
+
+        // 4. 본인이 받은 제안인지 확인
+        if (!recipient.getUser().getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        // 5. 읽음 처리
+        recipient.markAsRead();
+
+        // 6. 읽음 처리된 제안 정보 반환
+        return ReceivedProposalResponse.from(recipient);
+    }
 }

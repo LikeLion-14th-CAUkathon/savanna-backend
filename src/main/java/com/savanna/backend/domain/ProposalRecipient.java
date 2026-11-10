@@ -49,4 +49,12 @@ public class ProposalRecipient {
         this.status = status;
         this.respondedAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
     }
+
+    public void markAsRead() {
+        if (this.readAt == null) {
+            this.readAt = LocalDateTime.now(
+                    ZoneId.of("Asia/Seoul")
+            );
+        }
+    }
 }
