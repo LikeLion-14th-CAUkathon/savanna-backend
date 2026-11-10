@@ -56,10 +56,11 @@ public class TeamService {
                 request.name().trim(),
                 request.projectName().trim(),
                 request.projectIntro().trim(),
-                request.githubUrl(),
-                request.presentationUrl(),
-                request.stack()
+                normalizeOptional(request.githubUrl()),
+                normalizeOptional(request.presentationUrl()),
+                normalizeOptional(request.stack())
         );
+
 
         teamRepository.save(team);
 
@@ -182,4 +183,10 @@ public class TeamService {
         return TeamDetailResponseDto.from(team, members);
     }
 
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
 }

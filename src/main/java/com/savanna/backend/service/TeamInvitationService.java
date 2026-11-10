@@ -18,12 +18,10 @@ import org.springframework.web.server.ResponseStatusException;
 import com.savanna.backend.dto.response.TeamInvitationPreviewResponseDto;
 import com.savanna.backend.dto.response.TeamInvitationAcceptResponseDto;
 import com.savanna.backend.dto.response.TeamInvitationListResponseDto;
+import com.savanna.backend.invitation.InvitationTokenProvider;
 import java.util.List;
 import java.util.Comparator;
 
-import java.security.SecureRandom;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.HexFormat;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -36,18 +34,15 @@ public class TeamInvitationService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
-
-    private static final SecureRandom SECURE_RANDOM =
-            new SecureRandom();
+    private final InvitationTokenProvider invitationTokenProvider;
 
     @Transactional
     public TeamInvitationCreateResponseDto createInvitation(
             Long userId,
             Long teamId
     ) {
-
-        // 1. 팀 조회
-        Team team = teamRepository.findById(teamId)
+        // 1. 팀 조회 + DB 쓰기 잠금
+        Team team = teamRepository.findByIdForUpdate(teamId)
                 .orElseThrow(() ->
                         new ResponseStatusException(
                                 HttpStatus.NOT_FOUND,
@@ -55,24 +50,68 @@ public class TeamInvitationService {
                         )
                 );
 
-        // 2. 팀장 여부 확인
-        TeamMember member = teamMemberRepository
-                .findByUser_UserIdAndTeam_TeamId(userId, teamId)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.FORBIDDEN,
-                                "해당 팀에 접근할 권한이 없습니다."
-                        )
-                );
+        // 2. 팀장 권한 확인
+        validateLeader(userId, teamId);
 
-        if (member.getRole() != TeamRole.LEADER) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "팀장만 초대 링크를 생성할 수 있습니다."
+        // 3. 기존 초대 링크 최신순 조회
+        List<TeamInvitation> invitations = invitationRepository
+                .findAllByTeam_TeamIdOrderByCreatedAtDesc(teamId);
+
+        // 4. 기존 활성 영구 링크 확인
+        TeamInvitation activePermanentInvitation = null;
+
+        for (TeamInvitation invitation : invitations) {
+            if (invitation.getTokenSeed() != null
+                    && invitation.isActive()) {
+
+                if (activePermanentInvitation == null) {
+                    activePermanentInvitation = invitation;
+                } else {
+                    // 과거 중복 생성된 영구 링크가 있다면 폐기
+                    invitation.revoke();
+                }
+            }
+        }
+
+        // 5. 기존 영구 링크가 있다면 재사용
+        if (activePermanentInvitation != null) {
+
+            // 기존 7일짜리 활성 링크는 폐기
+            for (TeamInvitation invitation : invitations) {
+                if (invitation.getTokenSeed() == null
+                        && invitation.isActive()) {
+                    invitation.revoke();
+                }
+            }
+
+            String existingToken = invitationTokenProvider.createToken(
+                    activePermanentInvitation.getTokenSeed()
+            );
+
+            if (!activePermanentInvitation.getTokenHash().equals(
+                    invitationTokenProvider.hashToken(existingToken)
+            )) {
+                throw new IllegalStateException(
+                        "초대 링크 검증에 실패했습니다."
+                );
+            }
+
+            return new TeamInvitationCreateResponseDto(
+                    activePermanentInvitation.getInvitationId(),
+                    teamId,
+                    existingToken,
+                    null
             );
         }
 
-        // 3. 사용자 조회
+        // 6. 기존 활성 초대 링크 전부 폐기
+        for (TeamInvitation invitation : invitations) {
+            if (invitation.isActive()) {
+                invitation.revoke();
+            }
+        }
+
+        // 7. 새 영구 고정 초대 링크 생성
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new ResponseStatusException(
@@ -81,32 +120,25 @@ public class TeamInvitationService {
                         )
                 );
 
-        // 4. 안전한 초대 토큰 생성
-        byte[] randomBytes = new byte[32];
-        SECURE_RANDOM.nextBytes(randomBytes);
+        String seed = invitationTokenProvider.createSeed();
+        String token = invitationTokenProvider.createToken(seed);
+        String tokenHash = invitationTokenProvider.hashToken(token);
 
-        String token = Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(randomBytes);
-
-        // 5. 토큰 해시 생성
-        String tokenHash = hashToken(token);
-
-        // 6. 초대 정보 저장
         TeamInvitation invitation = new TeamInvitation(
                 team,
                 user,
-                tokenHash
+                tokenHash,
+                seed
         );
 
         invitationRepository.save(invitation);
 
-        // 7. 생성 결과 반환
+        // 8. 새 링크 반환
         return new TeamInvitationCreateResponseDto(
                 invitation.getInvitationId(),
-                team.getTeamId(),
+                teamId,
                 token,
-                invitation.getExpiresAt()
+                null
         );
     }
 
@@ -136,9 +168,16 @@ public class TeamInvitationService {
         }
 
         // 4. 팀 정보 반환
+        long currentMemberCount =
+                teamMemberRepository.countByTeam_TeamId(
+                        invitation.getTeam().getTeamId()
+                );
+
         return TeamInvitationPreviewResponseDto.from(
-                invitation
+                invitation,
+                currentMemberCount
         );
+
     }
 
     private String hashToken(String token) {

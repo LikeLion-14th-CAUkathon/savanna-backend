@@ -90,16 +90,25 @@ public class Team {
             this.projectIntro = projectIntro.trim();
         }
 
+
         if (githubUrl != null) {
-            this.githubUrl = githubUrl;
+            this.githubUrl = normalizeOptional(githubUrl);
         }
 
         if (presentationUrl != null) {
-            this.presentationUrl = presentationUrl;
+            this.presentationUrl = normalizeOptional(presentationUrl);
         }
 
         if (stack != null) {
-            this.stack = stack;
+            this.stack = normalizeOptional(stack);
         }
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
     }
 }

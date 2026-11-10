@@ -23,4 +23,5 @@ public interface TeamMemberRepository
             Long teamId
     );
 
+    long countByTeam_TeamId(Long teamId);
 }
