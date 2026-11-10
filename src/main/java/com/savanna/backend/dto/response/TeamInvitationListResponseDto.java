@@ -29,7 +29,9 @@ public record TeamInvitationListResponseDto(
                 invitation.getInvitationId(),
                 invitation.getTeam().getTeamId(),
                 invitation.getCreatedAt(),
-                invitation.getExpiresAt(),
+                invitation.getTokenSeed() != null
+                        ? null
+                        : invitation.getExpiresAt(),
                 invitation.getRevokedAt(),
                 status
         );

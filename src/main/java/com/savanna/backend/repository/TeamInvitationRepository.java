@@ -16,4 +16,6 @@ public interface TeamInvitationRepository
     List<TeamInvitation> findAllByTeam_TeamId(
             Long teamId
     );
+
+    List<TeamInvitation> findAllByTeam_TeamIdOrderByCreatedAtDesc(Long teamId);
 }
