@@ -135,10 +135,17 @@ public class TeamInvitationService {
             );
         }
 
-        // 4. 팀 정보 반환
+        // 4. 현재 팀 인원 조회
+        long currentMemberCount =
+                teamMemberRepository.countByTeam_TeamId(
+                        invitation.getTeam().getTeamId()
+                );
+
+        // 5. 팀 정보 및 인원 반환
         return TeamInvitationPreviewResponseDto.from(
-                invitation
-        );
+                invitation,
+                currentMemberCount
+                );
     }
 
     private String hashToken(String token) {

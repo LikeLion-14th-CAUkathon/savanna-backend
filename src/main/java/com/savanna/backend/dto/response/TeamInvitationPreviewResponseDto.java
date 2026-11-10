@@ -10,10 +10,13 @@ public record TeamInvitationPreviewResponseDto(
         String teamName,
         String projectName,
         String projectIntro,
+        long currentMemberCount,
+        long expectedMemberCount,
         Instant expiresAt
 ) {
     public static TeamInvitationPreviewResponseDto from(
-            TeamInvitation invitation
+            TeamInvitation invitation,
+            long currentMemberCount
     ) {
         Team team = invitation.getTeam();
 
@@ -22,6 +25,8 @@ public record TeamInvitationPreviewResponseDto(
                 team.getName(),
                 team.getProjectName(),
                 team.getProjectIntro(),
+                currentMemberCount,
+                currentMemberCount + 1,
                 invitation.getExpiresAt()
         );
     }
