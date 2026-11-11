@@ -13,6 +13,11 @@ public interface AnnouncementRepository
         extends JpaRepository<Announcement, Long>,
         JpaSpecificationExecutor<Announcement> {
 
+    Optional<Announcement> findBySourceProviderAndExternalId(String sourceProvider, String externalId);
+
+    java.util.List<Announcement> findByVisibilityTrueAndDeadlineGreaterThanEqualAndApplicationStartsAtLessThanEqualOrderByDeadlineAscAnnouncementIdAsc(
+            java.time.LocalDate today, java.time.LocalDateTime now, org.springframework.data.domain.Pageable pageable);
+
     java.util.Optional<Announcement> findByAnnouncementIdAndVisibilityTrue(Long announcementId);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)

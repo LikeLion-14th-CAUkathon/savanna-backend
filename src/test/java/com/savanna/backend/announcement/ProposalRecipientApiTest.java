@@ -52,7 +52,7 @@ class ProposalRecipientApiTest {
 
     ProposalRecipient invitation(User user) {
         var announcement = Announcement.builder().title("제안 공고 " + ++sequence)
-                .deadline(LocalDateTime.now().plusDays(10)).build();
+                .deadline(LocalDateTime.now().plusDays(10).toLocalDate()).build();
         em.persist(announcement);
         var expedition = new Expedition(team.getTeamId(), announcement);
         em.persist(expedition);
@@ -74,25 +74,25 @@ class ProposalRecipientApiTest {
         var latest = invitation(receiver);
         invitation(outsider);
         em.flush();
-        mvc.perform(get("/api/v1/proposals/received").header("Authorization", bearer(receiver)))
+        mvc.perform(get("/api/v1/proposal-recipients/received").header("Authorization", bearer(receiver)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].proposalRecipientId").value(latest.getProposalRecipientId()))
                 .andExpect(jsonPath("$[0].announcementTitle").value("제안 공고 2"))
                 .andExpect(jsonPath("$[0].senderName").value("sender"))
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
-        mvc.perform(get("/api/v1/proposals/received/pending-count").header("Authorization", bearer(receiver)))
+        mvc.perform(get("/api/v1/proposal-recipients/pending-count").header("Authorization", bearer(receiver)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.pendingCount").value(1));
         assertNull(latest.getReadAt());
     }
 
     @Test void emptyInboxReturnsEmptyListAndZero() throws Exception {
-        mvc.perform(get("/api/v1/proposals/received").header("Authorization", bearer(receiver)))
+        mvc.perform(get("/api/v1/proposal-recipients/received").header("Authorization", bearer(receiver)))
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
-        mvc.perform(get("/api/v1/proposals/received/pending-count").header("Authorization", bearer(receiver)))
+        mvc.perform(get("/api/v1/proposal-recipients/pending-count").header("Authorization", bearer(receiver)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.pendingCount").value(0));
     }
 
-    @Test void joinedAddsMembershipAndRejectsRepeatedResponse() throws Exception {
+    @Test void joinedAddsMembershipAndAllowsChangingResponseWithoutLeavingTeam() throws Exception {
         var recipient = invitation(receiver);
         mvc.perform(patch(responsePath(recipient)).header("Authorization", bearer(receiver))
                         .contentType("application/json").content("{\"status\":\"JOINED\"}"))
@@ -101,12 +101,13 @@ class ProposalRecipientApiTest {
         em.flush();
         em.clear();
         assertEquals(TeamRole.MEMBER, members.findByUser_UserIdAndTeam_TeamId(receiver.getUserId(), team.getTeamId()).orElseThrow().getRole());
-        mvc.perform(get("/api/v1/proposals/received/pending-count").header("Authorization", bearer(receiver)))
+        mvc.perform(get("/api/v1/proposal-recipients/pending-count").header("Authorization", bearer(receiver)))
                 .andExpect(jsonPath("$.pendingCount").value(0));
         mvc.perform(patch(responsePath(recipient)).header("Authorization", bearer(receiver))
                         .contentType("application/json").content("{\"status\":\"DECLINED\"}"))
-                .andExpect(status().isConflict());
-        assertEquals(ProposalRecipientStatus.JOINED, em.find(ProposalRecipient.class, recipient.getProposalRecipientId()).getStatus());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.responseVersion").value(2));
+        assertEquals(ProposalRecipientStatus.DECLINED, em.find(ProposalRecipient.class, recipient.getProposalRecipientId()).getStatus());
+        assertTrue(members.existsByUser_UserIdAndTeam_TeamId(receiver.getUserId(), team.getTeamId()));
     }
 
     @Test void existingLeaderKeepsRoleWhenJoiningAndDeclineDoesNotRemoveMembership() throws Exception {
@@ -134,8 +135,8 @@ class ProposalRecipientApiTest {
 
     @Test void requiresAuthenticationAndRejectsInvalidResponses() throws Exception {
         var recipient = invitation(receiver);
-        mvc.perform(get("/api/v1/proposals/received")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/v1/proposals/received/pending-count")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/proposal-recipients/received")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/proposal-recipients/pending-count")).andExpect(status().isUnauthorized());
         mvc.perform(patch(responsePath(recipient)).contentType("application/json").content("{\"status\":\"JOINED\"}"))
                 .andExpect(status().isUnauthorized());
         for (String body : new String[]{"{}", "{\"status\":\"PENDING\"}", "{\"status\":\"UNKNOWN\"}"}) {

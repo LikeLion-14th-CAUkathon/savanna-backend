@@ -17,7 +17,7 @@ class ExpeditionPersistenceTest {
     @Autowired EntityManager entityManager;
 
     private Announcement announcement() {
-        var a = Announcement.builder().title("공고").deadline(LocalDateTime.now().plusDays(10)).build();
+        var a = Announcement.builder().title("공고").deadline(LocalDateTime.now().plusDays(10).toLocalDate()).build();
         entityManager.persist(a);
         return a;
     }

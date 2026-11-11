@@ -14,6 +14,16 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
     List<ProposalRecipient> findAllByProposal_ProposalIdOrderByProposalRecipientIdAsc(Long proposalId);
 
     long countByUser_UserIdAndStatus(Long userId, ProposalRecipientStatus status);
+    long countByUser_UserIdAndReadAtIsNull(Long userId);
+
+    @Query("""
+            select count(r) from ProposalRecipient r
+            where r.proposal.sender.userId = :userId
+              and r.user.userId <> :userId
+              and r.status <> com.savanna.backend.enums.ProposalRecipientStatus.PENDING
+              and (case when r.responseVersion = 0 then 1 else r.responseVersion end) > r.responseReadVersion
+            """)
+    long countUnreadResponses(@Param("userId") Long userId);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from ProposalRecipient r where r.proposalRecipientId = :id")
@@ -29,6 +39,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
                    count(distinct r.user.userId) as joinedCount
             from ProposalRecipient r
             where r.proposal.expedition.teamId = :teamId and r.status = :status
+              and r.user.userId <> r.proposal.sender.userId
             group by r.proposal.expedition.expeditionId
             """)
     List<ExpeditionJoinedCount> countDistinctUsersByTeamAndStatus(

@@ -30,7 +30,7 @@ class ExpeditionChecklistApiTest {
 
     @BeforeEach void setup() {
         var a = announcements.saveAndFlush(Announcement.builder().title("공고")
-                .deadline(LocalDateTime.now().plusDays(20)).build());
+                .deadline(LocalDateTime.now().plusDays(20).toLocalDate()).build());
         expedition = expeditions.saveAndFlush(new Expedition(1L, a));
         mvc = MockMvcBuilders.standaloneSetup(new ExpeditionChecklistController(service))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();

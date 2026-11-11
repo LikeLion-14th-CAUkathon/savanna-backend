@@ -44,7 +44,7 @@ class ExpeditionApiTest {
 
     @BeforeEach void setup() {
         var a = announcements.saveAndFlush(Announcement.builder().title("공고")
-                .deadline(deadline.atTime(18, 0)).build());
+                .deadline(deadline).build());
         expedition = repository.saveAndFlush(new Expedition(1L, a));
         mvc = MockMvcBuilders.standaloneSetup(new ExpeditionController(service))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();

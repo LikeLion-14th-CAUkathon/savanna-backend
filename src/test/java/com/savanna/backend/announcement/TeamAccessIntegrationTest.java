@@ -23,6 +23,23 @@ class TeamAccessIntegrationTest {
     @Autowired EntityManager em;
     @Autowired ProposalService proposals;
 
+    @Test void proposalsAllowDeadlineDayButRejectYesterday() {
+        var sender = user("deadline-sender", EnrollmentStatus.ENROLLED);
+        var team = team();
+        join(sender, team, TeamRole.LEADER);
+        var today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
+        var current = Announcement.builder().title("오늘 마감")
+                .applicationStartsAt(today.minusDays(2).atStartOfDay()).deadline(today).build();
+        var closed = Announcement.builder().title("어제 마감")
+                .applicationStartsAt(today.minusDays(2).atStartOfDay()).deadline(today.minusDays(1)).build();
+        em.persist(current);
+        em.persist(closed);
+        em.flush();
+        var request = new ProposalCreateRequest("참가해요", team.getTeamId());
+        assertNotNull(proposals.createProposal(current.getAnnouncementId(), request, auth(sender)).proposalId());
+        fails(ErrorCode.INVALID_REQUEST, () -> proposals.createProposal(closed.getAnnouncementId(), request, auth(sender)));
+    }
+
     private User user(String suffix, EnrollmentStatus status) {
         var user = new User(suffix + "@team.test", "team-" + suffix);
         user.updateProfile(suffix, status);
@@ -99,7 +116,7 @@ class TeamAccessIntegrationTest {
         join(recipient, team, TeamRole.MEMBER);
         var announcement = Announcement.builder().title("공고")
                 .applicationStartsAt(LocalDateTime.now().minusDays(1))
-                .deadline(LocalDateTime.now().plusDays(10)).build();
+                .deadline(LocalDateTime.now().plusDays(10).toLocalDate()).build();
         em.persist(announcement);
         em.flush();
         var request = new ProposalCreateRequest("참가해요", team.getTeamId());

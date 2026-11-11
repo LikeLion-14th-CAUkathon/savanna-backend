@@ -17,6 +17,17 @@ public class AnnouncementEligibilityEvaluator {
     public AnnouncementEligibilityResponse evaluate(
             Announcement announcement, Long requestedTeamId, EligibilityTeamReader.TeamSnapshot team) {
         List<Condition> conditions = new ArrayList<>();
+        if (announcement.getEnrollmentRequirement() != null
+                && announcement.getEnrollmentRequirement().contains("해당자")) {
+            conditions.add(new Condition("ADDITIONAL_REQUIREMENTS", TEAM_INFO_REQUIRED,
+                    "참가 대상에 별도 조건이 있습니다. 공고 상세 원문을 확인해야 합니다."));
+        }
+        String participationRegion = announcement.getParticipationRegion();
+        if (participationRegion != null && !participationRegion.isBlank()
+                && !Set.of("온라인", "전국").contains(participationRegion.replaceAll("\\s+", ""))) {
+            conditions.add(new Condition("PARTICIPATION_REGION", TEAM_INFO_REQUIRED,
+                    "참가 가능 지역은 " + participationRegion + "입니다. 공고 원문에서 지역 자격을 확인해야 합니다."));
+        }
         if (team == null || team.memberEnrollmentStatuses() == null
                 || team.memberEnrollmentStatuses().isEmpty()) {
             conditions.add(new Condition("TEAM", TEAM_INFO_REQUIRED, "팀 및 가입된 팀원 정보를 확인해야 합니다."));

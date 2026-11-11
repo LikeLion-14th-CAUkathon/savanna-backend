@@ -5,6 +5,7 @@ import com.savanna.backend.enums.ApplicationMethod;
 import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public record AnnouncementCreateRequest(
         @NotBlank
@@ -14,7 +15,8 @@ public record AnnouncementCreateRequest(
         LocalDateTime applicationStartsAt,
 
         @NotNull
-        LocalDateTime deadline,
+        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
+        LocalDate deadline,
 
         @NotNull
         AnnouncementField field,
@@ -45,11 +47,11 @@ public record AnnouncementCreateRequest(
         @Size(max = 2000)
         String applyUrl
 ) {
-    @AssertTrue(message = "접수 마감은 접수 시작보다 늦어야 합니다.")
+    @AssertTrue(message = "접수 마감일은 접수 시작일보다 빠를 수 없습니다.")
     public boolean isApplicationPeriodValid() {
         return applicationStartsAt == null
                 || deadline == null
-                || deadline.isAfter(applicationStartsAt);
+                || !deadline.isBefore(applicationStartsAt.toLocalDate());
     }
 
     @AssertTrue(message = "최대 인원은 최소 인원 이상이어야 합니다.")

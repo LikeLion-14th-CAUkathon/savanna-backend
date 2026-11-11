@@ -8,7 +8,7 @@ GET /api/v1/teams/{teamId}/expeditions
     "expeditionId": 1,
     "announcementId": 10,
     "title": "헬스케어 AI 아이디어 공모전",
-    "deadline": "2026-11-14T18:00:00",
+    "deadline": "2026-11-14",
     "stage": "DRAFT",
     "joinedCount": 2
   }
@@ -18,7 +18,7 @@ GET /api/v1/teams/{teamId}/expeditions
 - 해당 팀의 원정만 조회합니다. 원정이 없으면 []입니다.
 - 공고 마감 오름차순, 같은 마감은 expeditionId 오름차순입니다.
 - 팀의 기존 원정 지도이므로 마감·제출 완료·비공개로 전환된 공고도 포함합니다.
-- deadline은 기존 공고와 동일한 한국 현지 시각입니다.
+- deadline은 한국 기준 마감일이며 YYYY-MM-DD 형식입니다. 마감일 당일까지 유효합니다.
 - joinedCount는 해당 원정에 속한 모든 제안 수신자 중 JOINED 상태의 고유 사용자 수입니다.
 - 같은 사람이 여러 제안을 수락해도 1명입니다. PENDING·DECLINED는 제외합니다.
 - 제안 발신자는 수신자로서 JOINED한 기록이 없다면 포함하지 않습니다.

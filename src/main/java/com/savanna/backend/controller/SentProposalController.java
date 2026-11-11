@@ -1,6 +1,8 @@
 package com.savanna.backend.controller;
 
 import com.savanna.backend.dto.response.*;
+import com.savanna.backend.dto.request.ProposalResponsesReadRequest;
+import jakarta.validation.Valid;
 import com.savanna.backend.service.SentProposalService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +27,12 @@ public class SentProposalController {
     public ProposalRecipientsResponse recipients(@AuthenticationPrincipal Long userId,
             @PathVariable("proposalId") Long proposalId) {
         return service.recipients(userId, proposalId);
+    }
+
+    @Operation(summary = "보낸 제안의 응답 확인 처리", description = "발신자만 화면에서 실제 확인한 수신 기록 ID와 responseVersion을 전달합니다.")
+    @PatchMapping("/{proposalId}/recipients/read")
+    public ProposalResponsesReadResponse markResponsesRead(@AuthenticationPrincipal Long userId,
+            @PathVariable("proposalId") Long proposalId, @Valid @RequestBody ProposalResponsesReadRequest request) {
+        return service.markResponsesRead(userId, proposalId, request);
     }
 }

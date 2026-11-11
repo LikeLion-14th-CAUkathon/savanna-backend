@@ -1,7 +1,10 @@
 package com.savanna.backend.dto.response;
 
-/**
- * Structure placeholder. Fields and behavior will be implemented with the API.
- */
-public class AnnouncementRecommendationResponse {
-}
+import com.savanna.backend.enums.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+public record AnnouncementRecommendationResponse(Long announcementId, String title, String host,
+        AnnouncementField field, LocalDate deadline, ReceptionStatus status, int score, String reason,
+        AnnouncementEligibilityResponse eligibility, LocalDateTime generatedAt,
+        RecommendationSource source, boolean stale) {}

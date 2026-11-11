@@ -45,3 +45,13 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.register('importContestKorea', JavaExec) {
+	group = 'application'
+	description = 'Import ContestKorea notices into the configured database, verify the list API, then exit.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.savanna.backend.integration.contestkorea.ContestKoreaImportCommand'
+	workingDir = projectDir
+	args "--contest-korea.import.category=${providers.gradleProperty('contestKoreaCategory').getOrElse('IDEA')}"
+	args "--contest-korea.import.backup-only=${providers.gradleProperty('contestKoreaBackupOnly').getOrElse('false')}"
+}

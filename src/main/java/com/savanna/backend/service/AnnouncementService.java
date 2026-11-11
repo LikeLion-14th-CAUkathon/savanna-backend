@@ -54,7 +54,7 @@ public class AnnouncementService {
             );
         }
 
-        // 공고 날짜를 한국 시간 기준으로 저장하는 전제
+        // 접수 시작은 한국 시각, 마감은 한국 날짜 기준으로 비교합니다.
         LocalDateTime now = LocalDateTime.now(
                 ZoneId.of("Asia/Seoul")
         );

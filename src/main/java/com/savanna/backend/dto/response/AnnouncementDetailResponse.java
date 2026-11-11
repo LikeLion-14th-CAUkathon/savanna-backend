@@ -6,6 +6,7 @@ import com.savanna.backend.enums.ApplicationMethod;
 import com.savanna.backend.enums.ReceptionStatus;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.ZoneId;
 
 public record AnnouncementDetailResponse(
@@ -14,7 +15,7 @@ public record AnnouncementDetailResponse(
         String host,
         AnnouncementField field,
         LocalDateTime applicationStartsAt,
-        LocalDateTime deadline,
+        LocalDate deadline,
         ReceptionStatus receptionStatus,
         String enrollmentRequirement,
         Integer minMembers,
@@ -25,12 +26,15 @@ public record AnnouncementDetailResponse(
         ApplicationMethod applicationMethod,
         String submissionRequirements,
         String sourceUrl,
-        String applyUrl
+        String applyUrl,
+        String participationRegion,
+        String posterUrl,
+        String applicationPeriodRaw
 ) {
     public static AnnouncementDetailResponse from(Announcement announcement) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
         ReceptionStatus status;
-        if (!announcement.getDeadline().isAfter(now)) {
+        if (announcement.getDeadline().isBefore(now.toLocalDate())) {
             status = ReceptionStatus.CLOSED;
         } else if (announcement.getApplicationStartsAt() != null
                 && announcement.getApplicationStartsAt().isAfter(now)) {
@@ -46,7 +50,8 @@ public record AnnouncementDetailResponse(
                 announcement.getMaxMembers(), announcement.getRegion(), announcement.getTheme(),
                 announcement.getEvaluationCriteria(), announcement.getApplicationMethod(),
                 announcement.getSubmissionRequirements(),
-                announcement.getSourceUrl(), announcement.getApplyUrl()
+                announcement.getSourceUrl(), announcement.getApplyUrl(),
+                announcement.getParticipationRegion(), announcement.getPosterUrl(), announcement.getApplicationPeriodRaw()
         );
     }
 }

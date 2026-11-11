@@ -42,7 +42,7 @@ class TeamExpeditionApiTest {
     }
 
     Expedition expedition(Long team, String title, LocalDateTime deadline) {
-        var a = announcements.saveAndFlush(Announcement.builder().title(title).deadline(deadline).build());
+        var a = announcements.saveAndFlush(Announcement.builder().title(title).deadline(deadline.toLocalDate()).build());
         return expeditions.saveAndFlush(new Expedition(team, a));
     }
 
@@ -68,7 +68,7 @@ class TeamExpeditionApiTest {
                 .andExpect(jsonPath("$[0].expeditionId").value(e.getExpeditionId()))
                 .andExpect(jsonPath("$[0].announcementId").isNumber())
                 .andExpect(jsonPath("$[0].title").value("공고명"))
-                .andExpect(jsonPath("$[0].deadline").value("2026-12-30T18:00:00"))
+                .andExpect(jsonPath("$[0].deadline").value("2026-12-30"))
                 .andExpect(jsonPath("$[0].stage").value("DRAFT"))
                 .andExpect(jsonPath("$[0].joinedCount").value(0));
     }
