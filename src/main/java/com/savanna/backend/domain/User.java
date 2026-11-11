@@ -69,9 +69,18 @@ public class User {
             String universityName,
             EnrollmentStatus enrollmentStatus
     ) {
-        this.name = name;
-        this.universityName = universityName;
-        this.enrollmentStatus = enrollmentStatus;
+        if (name != null) {
+            this.name = name.trim();
+        }
+
+        if (universityName != null) {
+            this.universityName = universityName;
+        }
+
+        if (enrollmentStatus != null) {
+            this.enrollmentStatus = enrollmentStatus;
+        }
+
         this.onboardingCompleted = true;
     }
 }
