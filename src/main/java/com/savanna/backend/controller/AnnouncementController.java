@@ -39,7 +39,7 @@ public class AnnouncementController {
         return announcementEligibilityService.check(announcementId, teamId, principal);
     }
 
-    @Operation(summary = "공고 상세 조회", description = "공개 공고의 상세 정보를 조회합니다. 마감된 공개 공고도 조회할 수 있습니다.")
+    @Operation(summary = "공고 상세 조회", description = "공개 공고의 상세 정보를 조회합니다. 누락된 상세값은 null이며 프런트에서 '공고 원문을 확인해 주세요'로 표시합니다. 인원 null은 미확인입니다. 제외·분류 보류 공고는 노출하지 않습니다.")
     @GetMapping("/{announcementId}")
     public AnnouncementDetailResponse getAnnouncement(
             @PathVariable("announcementId") Long announcementId

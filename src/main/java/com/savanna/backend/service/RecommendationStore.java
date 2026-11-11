@@ -88,7 +88,7 @@ public class RecommendationStore {
         var now = now();
         for (var suggestion : suggestions) {
             var announcement = byId.get(suggestion.announcementId());
-            if (announcement == null || !announcement.isVisibility() || announcement.getDeadline().isBefore(now.toLocalDate())
+            if (announcement == null || !announcement.isAvailable() || announcement.getDeadline().isBefore(now.toLocalDate())
                     || !candidate(announcement, current.teamSnapshot()).equals(expected.get(suggestion.announcementId()))) {
                 throw new BusinessException(ErrorCode.CONFLICT);
             }

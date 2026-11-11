@@ -12,7 +12,7 @@
     "announcementId": 10,
     "title": "청년 생활 아이디어 공모전",
     "host": "주최기관",
-    "field": "IDEA_PLANNING",
+    "field": "IDEA_ARCHITECTURE_STARTUP",
     "deadline": "2026-11-20",
     "status": "OPEN",
     "score": 85,
@@ -32,7 +32,7 @@
 ]
 ```
 
-예시의 reason은 API 형식 설명용입니다. 실제 AI 제공자는 아직 연결하지 않았습니다.
+예시의 reason은 API 형식 설명용입니다. 실제 제공자 설정은 OpenAiRecommendationAiClient 및 recommendation.ai 설정을 사용합니다.
 
 - 저장된 추천을 score 내림차순, 동점이면 마감일·공고 ID 오름차순으로 반환합니다.
 - 점수는 0~100의 적합도이며 합격 확률이 아닙니다.
@@ -59,7 +59,7 @@
 - AI 호출·결과 검증 실패 시 기존 추천을 삭제하지 않습니다.
 - 동시에 여러 재생성이 완료되면 팀 행 잠금으로 저장을 직렬 처리합니다. 중복 행 없이 마지막 정상 교체 결과가 남습니다.
 - 팀 정보 변경 자체에서 자동 AI 호출은 하지 않습니다. 화면에서는 GET이 []이거나 stale=true이면 POST를 호출하는 흐름을 사용합니다. POST를 직접 호출하면 현재 정보로 다시 생성합니다.
-- 기존 ContestKorea 분야 매핑은 변경하지 않았습니다. 후보의 field는 저장된 분야 값을 사용합니다.
+- field는 ACADEMIC_SCIENCE_IT / IDEA_ARCHITECTURE_STARTUP / ART_DESIGN_WEBTOON입니다. CSV 제외 사유 또는 분류 보류가 있는 공고는 후보와 저장 추천 조회 모두에서 제외합니다.
 
 ## 오류
 
@@ -87,7 +87,7 @@
 - prod 또는 production이 있으면 가짜 생성기는 활성화되지 않습니다.
 - 가짜 응답은 source=MOCK이며 추천 이유에도 [테스트용 추천]을 표시합니다. 실제 적합도 평가가 아닙니다.
 - 기본 실행에는 가짜 생성기가 등록되지 않습니다.
-- 실제 AI 연결 시 RecommendationAiClient 구현 빈을 제공하면 됩니다. 제공자 구현은 연결/응답 시간 제한을 설정하고, 입력에 없는 역량·참가 가능 여부·수상 가능성을 만들어내지 않는 프롬프트와 구조화 응답 파싱을 구현해야 합니다.
+- 실제 AI 구현은 OpenAiRecommendationAiClient이며 recommendation.ai.enabled와 키·모델 설정으로 활성화합니다. 연결/응답 시간 제한, 없는 정보 추측 금지 지침 및 구조화 응답 파싱을 사용합니다.
 - 입력은 프로젝트 정보와 후보 공고·조건에 한정합니다. 상단 예시처럼 공고와 프로젝트의 연결점을 짧게 설명하는 이유를 생성하도록 합니다.
 
-저장 테이블은 announcement_recommendations이며 팀·공고 조합은 유일합니다. 실제 앱 DB에 대한 스키마 변경·추천 생성은 이번 작업에서 실행하지 않았습니다.
+저장 테이블은 announcement_recommendations이며 팀·공고 조합은 유일합니다. 공고 수집 명령은 AI 추천을 재생성하지 않습니다. 수집 후 변경된 후보로 갱신하려면 refresh API를 호출합니다.

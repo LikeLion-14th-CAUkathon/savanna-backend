@@ -29,7 +29,9 @@ public record AnnouncementDetailResponse(
         String applyUrl,
         String participationRegion,
         String posterUrl,
-        String applicationPeriodRaw
+        String applicationPeriodRaw,
+        String applicationInstructions, String formNote, String lengthNote, String teamType,
+        String csvRequiredRegionRaw, String venueNote, String detailStatus, String dateSource
 ) {
     public static AnnouncementDetailResponse from(Announcement announcement) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
@@ -51,7 +53,9 @@ public record AnnouncementDetailResponse(
                 announcement.getEvaluationCriteria(), announcement.getApplicationMethod(),
                 announcement.getSubmissionRequirements(),
                 announcement.getSourceUrl(), announcement.getApplyUrl(),
-                announcement.getParticipationRegion(), announcement.getPosterUrl(), announcement.getApplicationPeriodRaw()
+                announcement.getParticipationRegion(), announcement.getPosterUrl(), announcement.getApplicationPeriodRaw(),
+                announcement.getApplicationInstructions(), announcement.getFormNote(), announcement.getLengthNote(), announcement.getTeamType(),
+                announcement.getCsvRequiredRegionRaw(), announcement.getVenueNote(), announcement.getDetailStatus(), announcement.getDateSource()
         );
     }
 }

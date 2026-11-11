@@ -45,6 +45,18 @@ public final class ContestKoreaImportCommand {
                 verifyBackupConnection(backup, environment);
                 throw new BackupOnlyComplete();
             }
+            String databaseUrl=environment.getProperty("spring.datasource.url", "");
+            if (!databaseUrl.startsWith("jdbc:h2:file:") && !databaseUrl.startsWith("jdbc:h2:mem:")) {
+                throw new IllegalStateException("Manual import/migration is restricted to local H2. Do not target EC2 remotely.");
+            }
+            if (environment.getProperty("contest-korea.import.migrate-fields", Boolean.class, false)) {
+                try {
+                    String csvPath=environment.getProperty("contest-korea.import.csv", "");
+                    var csvRows=csvPath.isBlank()?List.<java.util.Map<String,String>>of():ContestKoreaCsv.read(java.nio.file.Path.of(csvPath));
+                    ContestKoreaFieldMigration.apply(environment.getProperty("spring.datasource.url"),
+                            environment.getProperty("spring.datasource.username","sa"), environment.getProperty("spring.datasource.password",""),csvRows);
+                } catch (java.sql.SQLException | java.io.IOException exception) { throw new IllegalStateException("Explicit field migration failed.",exception); }
+            }
         });
         // Fixed local bind and an ephemeral port. Credentials never appear in command arguments.
         var options = new java.util.ArrayList<>(List.of(args));
@@ -66,40 +78,60 @@ public final class ContestKoreaImportCommand {
             return 1;
         }
         try (context) {
-            var category = ContestKoreaCategory.valueOf(context.getEnvironment()
-                    .getProperty("contest-korea.import.category", "IDEA"));
-            List<ContestKoreaItem> items;
-            try {
-                items = context.getBean(ContestKoreaClient.class).fetch(category);
-            } catch (Exception exception) {
-                System.out.println(ContestKoreaFailureDiagnostics.summarize(exception));
-                // Never print original HTTP exceptions: the request URL carries the API key.
-                System.out.println("CONTEST_KOREA_RESULT category=" + category
-                        + " created=0 updated=0 skipped=0 failedRequests=1 failedItems=unknown stage=fetch");
-                return 1;
+            var selected=ContestKoreaCategory.selected(context.getEnvironment().getProperty("contest-korea.import.category","IDEA"));
+            var items=new java.util.ArrayList<ContestKoreaItem>();var skipped=new HashSet<String>();
+            var report=new java.util.LinkedHashMap<String,Object>();var categoryReports=new java.util.LinkedHashMap<String,Object>();
+            boolean failed=false;
+            for(var category:selected){
+                List<ContestKoreaItem> fetched;
+                try{fetched=context.getBean(ContestKoreaClient.class).fetch(category);}
+                catch(Exception exception){failed=true;categoryReports.put(category.name(),java.util.Map.of("failedRequests",1,"failedItems","unknown"));
+                    System.out.println(ContestKoreaFailureDiagnostics.summarize(exception));
+                    System.out.println("CONTEST_KOREA_RESULT category="+category+" created=0 updated=0 skipped=0 excluded=0 failedRequests=1 failedItems=unknown stage=fetch");continue;}
+                try{
+                    var result=context.getBean(ContestKoreaWriter.class).save(category,fetched);
+                    items.addAll(fetched);skipped.addAll(result.skippedIds());
+                    categoryReports.put(category.name(),java.util.Map.of("received",fetched.size(),"created",result.created(),"updated",result.updated(),"excluded",result.excluded(),"failedItems",result.skippedIds().size(),"issues",result.issues(),"skippedIds",result.skippedIds()));
+                    System.out.println("CONTEST_KOREA_RESULT category="+category+" fetched="+fetched.size()+" created="+result.created()+" updated="+result.updated()+" skipped="+result.skippedIds().size()+" failedItems="+result.skippedIds().size()+" failedRequests=0 excluded="+result.excluded());
+                    if(!result.issues().isEmpty())System.out.println("CONTEST_KOREA_ISSUES "+result.issues());
+                }catch(Exception exception){failed=true;categoryReports.put(category.name(),java.util.Map.of("received",fetched.size(),"failedItems",fetched.size(),"rolledBack",true));System.out.println(ContestKoreaFailureDiagnostics.summarize(exception));}
             }
-            ContestKoreaWriter.ImportResult result;
+            report.put("categories",categoryReports);report.put("datasetComplete",false);report.put("coverage","LATEST_BATCH_ONLY; requestedLimit=100; pagination and total count are not documented");
+            System.out.println("CONTEST_KOREA_COVERAGE datasetComplete=false mode=LATEST_BATCH_ONLY requestedLimit=100 pagination=UNDOCUMENTED totalAvailable=UNKNOWN");
+            String csvPath=context.getEnvironment().getProperty("contest-korea.import.csv","");
+            if(!csvPath.isBlank())try{
+                var rows=ContestKoreaCsv.read(java.nio.file.Path.of(csvPath));
+                String hash=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(java.nio.file.Files.readAllBytes(java.nio.file.Path.of(csvPath))));
+                var csvResult=context.getBean(ContestKoreaCsvWriter.class).apply(rows,java.nio.file.Path.of(csvPath).getFileName()+":SHA256="+hash);
+                report.put("csv",csvResult);System.out.println("CONTEST_KOREA_CSV_RESULT "+JsonMapper.builder().build().writeValueAsString(csvResult));
+                if(csvResult.failed()>0)failed=true;
+                for(var row:rows)items.add(new ContestKoreaItem(row.get("api_id"),null,null,null,null,null,null,null,null));
+            }catch(Exception exception){failed=true;report.put("csvFailure",true);System.out.println(ContestKoreaFailureDiagnostics.summarize(exception));}
+            var jdbc=context.getBean(org.springframework.jdbc.core.JdbcTemplate.class);
+            var duplicates=jdbc.queryForList("select source_provider,external_id,count(*) as copies from announcements where source_provider='CONTEST_KOREA' group by source_provider,external_id having count(*)>1");
+            report.put("duplicateExternalIds",duplicates);
+            var census=jdbc.queryForList("select field,count(*) as stored,sum(case when visibility=true and exclude_reason is null and classification_issue is null then 1 else 0 end) as public_count,sum(case when exclude_reason is not null then 1 else 0 end) as excluded,sum(case when classification_issue is not null then 1 else 0 end) as classification_held from announcements where source_provider='CONTEST_KOREA' group by field order by field");
+            report.put("finalDatabaseCounts",census);
+            report.put("multipleCategoryMembership",jdbc.queryForList("select external_id,external_category_codes,primary_category_codes,field,classification_issue from announcements where source_provider='CONTEST_KOREA' and external_category_codes like '%|%' order by external_id"));
+            report.put("unresolvedClassification",jdbc.queryForList("select external_id,external_category,classification_issue from announcements where source_provider='CONTEST_KOREA' and classification_issue is not null order by external_id"));
+            report.put("dateDiscrepancies",jdbc.queryForList("select external_id,cast(api_start_date as varchar) as api_start_date,cast(api_deadline as varchar) as api_deadline,cast(csv_start_date as varchar) as csv_start_date,cast(csv_deadline as varchar) as csv_deadline,date_source from announcements where source_provider='CONTEST_KOREA' and ((csv_start_date is not null and api_start_date<>csv_start_date) or (csv_deadline is not null and api_deadline<>csv_deadline)) order by external_id"));
+            System.out.println("CONTEST_KOREA_FINAL_DATABASE "+JsonMapper.builder().build().writeValueAsString(census));
+            System.out.println("CONTEST_KOREA_DUPLICATE_EXTERNAL_IDS count="+duplicates.size());
+            if(!duplicates.isEmpty())failed=true;
             try {
-                // The transaction commits before this call returns. On failure, all writes roll back.
-                result = context.getBean(ContestKoreaWriter.class).save(category, items);
-            } catch (Exception exception) {
-                System.out.println(ContestKoreaFailureDiagnostics.summarize(exception));
-                System.out.println("CONTEST_KOREA_RESULT category=" + category + " fetched=" + items.size()
-                        + " created=0 updated=0 skipped=unknown failedItems=" + items.size() + " stage=save rolledBack=true");
-                return 1;
-            }
-            System.out.println("CONTEST_KOREA_RESULT category=" + category + " fetched=" + items.size()
-                    + " created=" + result.created() + " updated=" + result.updated()
-                    + " skipped=" + result.skippedIds().size() + " failedItems=0 failedRequests=0");
-            if (!result.skippedIds().isEmpty()) System.out.println("CONTEST_KOREA_SKIPPED_IDS " + result.skippedIds());
-            try {
-                verifyList(context, items, Set.copyOf(result.skippedIds()));
+                verifyList(context, items, skipped);
             } catch (Exception exception) {
                 System.out.println(ContestKoreaFailureDiagnostics.summarize(exception));
                 System.out.println("CONTEST_KOREA_API_VERIFY_FAILED: import is committed; inspect list API and verification-user cleanup.");
                 return 2;
             }
-            return 0;
+            try{
+                var directory=java.nio.file.Path.of("tmp/import-reports");java.nio.file.Files.createDirectories(directory);
+                var path=directory.resolve("contest-korea-"+UUID.randomUUID()+".json");
+                java.nio.file.Files.writeString(path,JsonMapper.builder().build().writerWithDefaultPrettyPrinter().writeValueAsString(report));
+                System.out.println("CONTEST_KOREA_REPORT "+path.toAbsolutePath());
+            }catch(java.io.IOException exception){throw new IllegalStateException("Cannot write import report",exception);}
+            return failed?1:0;
         }
     }
 
@@ -134,7 +166,7 @@ public final class ContestKoreaImportCommand {
         for (var item : items) {
             if (item == null || item.id() == null || skippedIds.contains(item.id().trim())) continue;
             announcements.findBySourceProviderAndExternalId("CONTEST_KOREA", item.id().trim())
-                    .filter(a -> a.isVisibility() && !a.getDeadline().isBefore(today))
+                    .filter(a -> a.isAvailable() && !a.getDeadline().isBefore(today))
                     .ifPresent(a -> expected.add(a.getAnnouncementId()));
         }
         var users = context.getBean(UserRepository.class);
@@ -162,6 +194,13 @@ public final class ContestKoreaImportCommand {
                 if (page.get("last").asBoolean()) break;
             }
             if (!found.containsAll(expected)) throw new IllegalStateException("Imported announcements missing from list");
+            for(var field:com.savanna.backend.enums.AnnouncementField.values()){
+                var request=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1/announcements?field="+field.name()+"&size=100"))
+                        .timeout(Duration.ofSeconds(15)).header("Authorization","Bearer "+token).GET().build();
+                var response=client.send(request,HttpResponse.BodyHandlers.ofString());if(response.statusCode()!=200)throw new IllegalStateException("Field API not 200");
+                var page=mapper.readTree(response.body());for(var row:page.get("content"))if(!field.name().equals(row.get("field").asText()))throw new IllegalStateException("Field API mismatch");
+                System.out.println("CONTEST_KOREA_FIELD_VERIFIED field="+field+" status=200 totalElements="+page.get("totalElements").asLong());
+            }
             System.out.println("CONTEST_KOREA_API_VERIFIED method=GET path=/api/v1/announcements status=200 pages="
                     + pages + " expectedVisible=" + expected.size() + " found=" + found.size()
                     + " announcementIds=" + found.stream().sorted().toList());

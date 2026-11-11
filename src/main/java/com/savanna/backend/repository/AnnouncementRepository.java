@@ -15,10 +15,12 @@ public interface AnnouncementRepository
 
     Optional<Announcement> findBySourceProviderAndExternalId(String sourceProvider, String externalId);
 
+    @Query("select a from Announcement a where a.visibility=true and a.excludeReason is null and a.classificationIssue is null and a.deadline>=:today and a.applicationStartsAt<=:now order by a.deadline,a.announcementId")
     java.util.List<Announcement> findByVisibilityTrueAndDeadlineGreaterThanEqualAndApplicationStartsAtLessThanEqualOrderByDeadlineAscAnnouncementIdAsc(
-            java.time.LocalDate today, java.time.LocalDateTime now, org.springframework.data.domain.Pageable pageable);
+            @Param("today") java.time.LocalDate today, @Param("now") java.time.LocalDateTime now, org.springframework.data.domain.Pageable pageable);
 
-    java.util.Optional<Announcement> findByAnnouncementIdAndVisibilityTrue(Long announcementId);
+    @Query("select a from Announcement a where a.announcementId=:id and a.visibility=true and a.excludeReason is null and a.classificationIssue is null")
+    java.util.Optional<Announcement> findByAnnouncementIdAndVisibilityTrue(@Param("id") Long announcementId);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("""
