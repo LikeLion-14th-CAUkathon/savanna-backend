@@ -75,11 +75,11 @@
 
 | 범주 | 외부 코드 | 앱 분야 |
 |---|---|---|
-| IDEA | 031410001 | IDEA_PLANNING |
-| IT | 030310001 | DEVELOPMENT_HACKATHON |
-| DESIGN | 030610001 | DESIGN |
+| IDEA | 031410001 | IDEA_ARCHITECTURE_STARTUP |
+| IT | 030310001 | ACADEMIC_SCIENCE_IT |
+| DESIGN | 030610001 | ART_DESIGN_WEBTOON |
 
-이는 외부의 넓은 분야를 앱의 분류에 연결한 초기 규칙입니다. IT에는 학문·과학도 포함되므로 모두 해커톤인 것은 아닙니다. 외부 분야 원문은 externalCategory에 보존합니다. 사회·ESG를 제목만 보고 임의 분류하지 않습니다.
+앱 분야는 외부의 넓은 분야와 동일합니다. IT에는 학문·과학도 포함됩니다. 외부 분야 원문은 externalCategory에 보존합니다. 사회·ESG를 제목만 보고 임의 분류하지 않습니다.
 
 ## 저장과 갱신
 

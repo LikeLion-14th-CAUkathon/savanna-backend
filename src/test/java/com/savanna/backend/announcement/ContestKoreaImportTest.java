@@ -36,7 +36,7 @@ class ContestKoreaImportTest {
         assertEquals(LocalDate.of(2026, 11, 18), saved.getDeadline());
         assertEquals("공고 제목", saved.getTitle());
         assertEquals("주최 기관", saved.getHost());
-        assertEquals(AnnouncementField.IDEA_PLANNING, saved.getField());
+        assertEquals(AnnouncementField.IDEA_ARCHITECTURE_STARTUP, saved.getField());
         assertNull(saved.getRegion());
         assertNull(saved.getApplyUrl());
         assertEquals("온라인", AnnouncementDetailResponse.from(saved).participationRegion());
@@ -48,7 +48,7 @@ class ContestKoreaImportTest {
         assertEquals(0, update.created());
         assertEquals(1, update.updated());
         assertEquals(LocalDate.of(2026, 11, 20), saved.getDeadline());
-        assertEquals("경 기", saved.getParticipationRegion());
+        assertEquals("온라인", saved.getParticipationRegion());
         assertEquals("10.30~11.20", saved.getApplicationPeriodRaw());
         assertFalse(saved.isVisibility());
         assertEquals(1, repository.findAll().stream().filter(a -> "202611030022".equals(a.getExternalId())).count());

@@ -17,7 +17,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "recommendation.ai.enabled=false")
 @Transactional
 class RecommendationUnavailableTest {
     @Autowired WebApplicationContext context;

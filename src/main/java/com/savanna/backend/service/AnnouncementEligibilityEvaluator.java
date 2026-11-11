@@ -40,15 +40,23 @@ public class AnnouncementEligibilityEvaluator {
                 conditions.add(new Condition("MEMBER_COUNT", TEAM_INFO_REQUIRED, "공고의 참가 인원 조건을 확인해야 합니다."));
             } else if ((min != null && count < min) || (max != null && count > max)) {
                 conditions.add(new Condition("MEMBER_COUNT", MISMATCH, "현재 팀원 수가 공고의 참가 인원 범위와 일치하지 않습니다."));
-            } else if (min == null && max == null) {
+            } else if (min == null || max == null) {
                 conditions.add(new Condition("MEMBER_COUNT", TEAM_INFO_REQUIRED, "공고의 참가 인원 조건이 확인되지 않았습니다."));
             } else {
                 conditions.add(new Condition("MEMBER_COUNT", SATISFIED, "현재 팀원 수가 확인된 참가 인원 조건을 충족합니다."));
             }
             Set<EnrollmentStatus> allowed = allowedStatuses(announcement.getEnrollmentRequirement());
+            if (announcement.getAllowedStatusRaw() != null) {
+                allowed = switch (announcement.getAllowedStatusRaw()) {
+                    case "any" -> Set.of(EnrollmentStatus.values());
+                    case "enrolled" -> Set.of(EnrollmentStatus.ENROLLED);
+                    case "enrolled|on_leave" -> Set.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ON_LEAVE);
+                    default -> null;
+                };
+            }
             if (allowed == null || team.memberEnrollmentStatuses().stream().anyMatch(s -> s == null)) {
                 conditions.add(new Condition("ENROLLMENT", TEAM_INFO_REQUIRED, "참가 대상 원문과 팀원의 재학 상태를 확인해야 합니다."));
-            } else if (team.memberEnrollmentStatuses().stream().anyMatch(s -> !allowed.contains(s))) {
+            } else if (!allowed.containsAll(team.memberEnrollmentStatuses())) {
                 conditions.add(new Condition("ENROLLMENT", MISMATCH, "참가 대상의 재학 상태 조건과 일치하지 않는 팀원이 있습니다."));
             } else {
                 conditions.add(new Condition("ENROLLMENT", SATISFIED, "모든 팀원이 재학 상태 조건을 충족합니다."));

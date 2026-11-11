@@ -54,7 +54,7 @@ class AnnouncementDetailTest {
     @Test
     void createAcceptsDateOnlyAndSameDayStartButRejectsTimestampAndReversedDates() throws Exception {
         String request = """
-                {"title":"날짜 공고", "host":"주최", "field":"IDEA_PLANNING",
+                {"title":"날짜 공고", "host":"주최", "field":"IDEA_ARCHITECTURE_STARTUP",
                  "applicationStartsAt":"2026-12-20T18:00:00", "deadline":"%s"}
                 """;
         mvc.perform(post("/api/v1/announcements").contentType("application/json").content(request.formatted("2026-12-20")))

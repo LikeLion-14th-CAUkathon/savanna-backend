@@ -8,7 +8,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Provider adapter must use bounded timeouts and return facts grounded in these inputs. */
+/** Provider adapter must use bounded timeouts and return facts grounded in these inputs.
+ * Null means unknown: never infer member limits, themes, criteria, deliverables or eligibility
+ * from missing values. Reasons must cite supplied facts; missing conditions require original-notice review.
+ */
 public interface RecommendationAiClient {
     record TeamInput(String projectName, String projectIntro, String stack, List<EnrollmentStatus> enrollmentStatuses) {}
     record Candidate(Long announcementId, String title, AnnouncementField field, String theme,

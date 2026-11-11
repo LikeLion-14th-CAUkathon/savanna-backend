@@ -3,7 +3,7 @@
 deadline은 LocalDate / SQL DATE입니다. 생성 요청과 공고 목록·상세·원정 응답 모두 YYYY-MM-DD 형식을 사용합니다.
 
 ```json
-{"title":"공고", "host":"주최기관", "field":"IDEA_PLANNING", "deadline":"2026-12-20"}
+{"title":"공고", "host":"주최기관", "field":"IDEA_ARCHITECTURE_STARTUP", "deadline":"2026-12-20"}
 ```
 
 - 한국 날짜 기준으로 마감일 당일까지 유효하고 다음 날부터 CLOSED입니다.

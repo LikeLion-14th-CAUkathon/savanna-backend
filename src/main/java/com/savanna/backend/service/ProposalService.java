@@ -81,7 +81,7 @@ public class ProposalService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        if (!announcement.isVisibility()) {
+        if (!announcement.isAvailable()) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 

@@ -23,6 +23,7 @@ public final class AnnouncementSpecification {
         return (root, query, cb) -> {
             // 공개 공고만 조회
             var predicate = cb.isTrue(root.get("visibility"));
+            predicate = cb.and(predicate, cb.isNull(root.get("excludeReason")), cb.isNull(root.get("classificationIssue")));
 
             // 제목 또는 주최기관 검색
             if (keyword != null && !keyword.isBlank()) {

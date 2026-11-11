@@ -22,7 +22,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "recommendation.ai.enabled=false")
 @Import(RecommendationApiTest.AiConfiguration.class)
 @Transactional
 class RecommendationApiTest {
@@ -74,7 +74,7 @@ class RecommendationApiTest {
     String path() { return "/api/v1/teams/" + team.getTeamId() + "/recommendations"; }
     String bearer(User user) { return "Bearer " + tokens.createAccessToken(user.getUserId()); }
     Announcement announcement(String title, int days, String target) {
-        var announcement = Announcement.builder().title(title).host("주최").field(AnnouncementField.IDEA_PLANNING)
+        var announcement = Announcement.builder().title(title).host("주최").field(AnnouncementField.IDEA_ARCHITECTURE_STARTUP)
                 .applicationStartsAt(today.minusDays(1).atStartOfDay()).deadline(today.plusDays(days))
                 .minMembers(1).maxMembers(3).enrollmentRequirement(target).theme("청년 생활 문제").build();
         em.persist(announcement); em.flush(); return announcement;
@@ -139,7 +139,7 @@ class RecommendationApiTest {
         var hidden = announcement("숨김", 2, "재학생");
         refresh();
         hidden.changeVisibility(false);
-        visible.syncContestKorea("changed", "아이디어", "바뀐 제목", "주최", AnnouncementField.IDEA_PLANNING,
+        visible.syncContestKorea("changed", "아이디어", "바뀐 제목", "주최", AnnouncementField.IDEA_ARCHITECTURE_STARTUP,
                 today.minusDays(1), today.plusDays(1), "재학생", "온라인", "11.01~11.30", "https://example.com", null);
         mvc.perform(get(path()).header("Authorization", bearer(member)))
                 .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].stale").value(true));

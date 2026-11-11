@@ -11,6 +11,7 @@ public interface AnnouncementRecommendationRepository extends JpaRepository<Anno
     @Query("""
             select r from AnnouncementRecommendation r where r.team.teamId = :teamId
             and r.announcement.visibility = true and r.announcement.deadline >= :today
+            and r.announcement.excludeReason is null and r.announcement.classificationIssue is null
             order by r.score desc, r.announcement.deadline asc, r.announcement.announcementId asc
             """)
     List<AnnouncementRecommendation> findVisible(@Param("teamId") Long teamId, @Param("today") LocalDate today);
