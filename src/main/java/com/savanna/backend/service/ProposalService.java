@@ -101,7 +101,7 @@ public class ProposalService {
         if (announcement.getApplicationStartsAt() == null
                 || announcement.getApplicationStartsAt().isAfter(now)
                 || announcement.getDeadline() == null
-                || !announcement.getDeadline().isAfter(now)) {
+                || announcement.getDeadline().isBefore(now.toLocalDate())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
 

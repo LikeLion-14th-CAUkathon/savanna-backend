@@ -11,6 +11,11 @@ import java.util.Optional;
 
 public interface TeamRepository extends JpaRepository<Team, Long> {
 
+    // 추천 결과 교체 시 팀 잠금
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Team t WHERE t.teamId = :id")
+    Optional<Team> findForRecommendationUpdate(@Param("id") Long id);
+
     // 참여 제안 응답 처리 시 팀 잠금
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM Team t WHERE t.teamId = :id")

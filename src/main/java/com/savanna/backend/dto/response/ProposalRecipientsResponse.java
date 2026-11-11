@@ -8,15 +8,19 @@ import java.util.List;
 public record ProposalRecipientsResponse(Long proposalId, long totalCount, long joinedCount,
                                         long declinedCount, long pendingCount, List<Recipient> recipients) {
     public record Recipient(Long proposalRecipientId, Long userId, String name,
-                            ProposalRecipientStatus status, LocalDateTime readAt, LocalDateTime respondedAt) {
+                            ProposalRecipientStatus status, LocalDateTime readAt, LocalDateTime respondedAt,
+                            long responseVersion, boolean responseUnread) {
         public static Recipient from(ProposalRecipient recipient) {
             return new Recipient(recipient.getProposalRecipientId(), recipient.getUser().getUserId(),
-                    recipient.getUser().getName(), recipient.getStatus(), recipient.getReadAt(), recipient.getRespondedAt());
+                    recipient.getUser().getName(), recipient.getStatus(), recipient.getReadAt(), recipient.getRespondedAt(),
+                    recipient.getResponseVersion(), recipient.isResponseUnread());
         }
     }
 
     public static ProposalRecipientsResponse from(Long proposalId, List<ProposalRecipient> records) {
-        var recipients = records.stream().map(Recipient::from).toList();
+        var recipients = records.stream()
+                .filter(r -> !r.getUser().getUserId().equals(r.getProposal().getSender().getUserId()))
+                .map(Recipient::from).toList();
         long joined = recipients.stream().filter(r -> r.status() == ProposalRecipientStatus.JOINED).count();
         long declined = recipients.stream().filter(r -> r.status() == ProposalRecipientStatus.DECLINED).count();
         long pending = recipients.stream().filter(r -> r.status() == ProposalRecipientStatus.PENDING).count();

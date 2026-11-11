@@ -51,7 +51,7 @@ class SentProposalApiTest {
 
     Proposal proposal(User author) {
         var announcement = Announcement.builder().title("공고 " + ++sequence)
-                .deadline(LocalDateTime.now().plusDays(10)).build();
+                .deadline(LocalDateTime.now().plusDays(10).toLocalDate()).build();
         em.persist(announcement);
         var expedition = new Expedition(team.getTeamId(), announcement);
         em.persist(expedition);
@@ -158,6 +158,8 @@ class SentProposalApiTest {
         proposal.getExpedition().getAnnouncement().changeVisibility(false);
         proposal.getExpedition().changeStage(ExpeditionStage.SUBMITTED);
         em.flush();
+        em.refresh(joined);
+        var originalReadAt = joined.getReadAt();
         em.clear();
         mvc.perform(get(expeditionPath(proposal.getExpedition())).header("Authorization", bearer(other)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
@@ -176,7 +178,8 @@ class SentProposalApiTest {
                 .andExpect(jsonPath("$[0].recipients[0].status").value("JOINED"))
                 .andExpect(jsonPath("$[0].recipients[0].respondedAt").isNotEmpty())
                 .andExpect(jsonPath("$[0].recipients[2].respondedAt").isEmpty());
-        org.junit.jupiter.api.Assertions.assertNull(em.find(ProposalRecipient.class, joined.getProposalRecipientId()).getReadAt());
+        org.junit.jupiter.api.Assertions.assertEquals(originalReadAt,
+                em.find(ProposalRecipient.class, joined.getProposalRecipientId()).getReadAt());
     }
 
     @Test void expeditionWithoutProposalReturnsEmptyAndWithoutRecipientsReturnsZero() throws Exception {

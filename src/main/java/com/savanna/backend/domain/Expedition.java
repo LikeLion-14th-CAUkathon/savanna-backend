@@ -63,14 +63,14 @@ public class Expedition {
      */
     public void updateSchedule(LocalDate kickoffDate, LocalDate draftDate,
                                LocalDate reviewDate, LocalDate submitTargetDate) {
-        LocalDateTime deadline = announcement.getDeadline();
+        LocalDate deadline = announcement.getDeadline();
         if (deadline == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         LocalDate previous = null;
         for (LocalDate date : new LocalDate[]{kickoffDate, draftDate, reviewDate, submitTargetDate}) {
             if (date == null) continue;
-            if ((previous != null && date.isBefore(previous)) || date.isAfter(deadline.toLocalDate())) {
+            if ((previous != null && date.isBefore(previous)) || date.isAfter(deadline)) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
             previous = date;

@@ -2,14 +2,14 @@ package com.savanna.backend.controller;
 
 import com.savanna.backend.dto.request.ProposalResponseRequest;
 import com.savanna.backend.dto.response.ProposalRecipientResponse;
+import com.savanna.backend.dto.response.ReceivedProposalResponse;
+import com.savanna.backend.dto.response.ProposalPendingCountResponse;
 import com.savanna.backend.service.ProposalRecipientService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import com.savanna.backend.dto.response.ReceivedProposalResponse;
-import com.savanna.backend.dto.response.ProposalPendingCountResponse;
 import java.util.List;
 
 @RestController
@@ -18,7 +18,7 @@ import java.util.List;
 public class ProposalRecipientController {
     private final ProposalRecipientService service;
 
-    @Operation(summary = "제안 응답", description = "JOINED(합류) 또는 DECLINED(쉬어가기). 응답 완료된 제안은 409입니다.")
+    @Operation(summary = "제안 응답", description = "JOINED와 DECLINED 간 변경을 허용합니다. 동일 응답 재요청은 시간을 변경하지 않습니다.")
     @PatchMapping("/{proposalRecipientId}/response")
     public ProposalRecipientResponse respond(@AuthenticationPrincipal Long userId,
             @PathVariable("proposalRecipientId") Long id, @Valid @RequestBody ProposalResponseRequest request) {

@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -26,6 +27,43 @@ class AnnouncementDetailTest {
     @Autowired AnnouncementService service;
     @Autowired com.savanna.backend.service.AnnouncementEligibilityService eligibilityService;
     MockMvc mvc;
+
+    @Test
+    void deadlineDayRemainsOpenAndListsUseTheSameDateBoundary() throws Exception {
+        var now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        var today = now.toLocalDate();
+        var current = save(now.minusDays(2), today.atStartOfDay());
+        var closed = save(now.minusDays(3), today.minusDays(1).atStartOfDay());
+        mvc.perform(get("/api/v1/announcements/{id}", current.getAnnouncementId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deadline").value(today.toString()))
+                .andExpect(jsonPath("$.receptionStatus").value("OPEN"));
+        // 23:59:59에도 마감일 당일 공고는 OPEN이고 어제 공고만 CLOSED입니다.
+        var atEndOfDay = today.atTime(23, 59, 59);
+        for (var filter : new com.savanna.backend.enums.ReceptionStatus[]{null, com.savanna.backend.enums.ReceptionStatus.OPEN}) {
+            var results = repository.findAll(com.savanna.backend.repository.AnnouncementSpecification.search(null, null, filter, atEndOfDay));
+            org.junit.jupiter.api.Assertions.assertTrue(results.stream().anyMatch(a -> a.getAnnouncementId().equals(current.getAnnouncementId())));
+            org.junit.jupiter.api.Assertions.assertFalse(results.stream().anyMatch(a -> a.getAnnouncementId().equals(closed.getAnnouncementId())));
+        }
+        var results = repository.findAll(com.savanna.backend.repository.AnnouncementSpecification.search(
+                null, null, com.savanna.backend.enums.ReceptionStatus.CLOSED, today.atStartOfDay()));
+        org.junit.jupiter.api.Assertions.assertTrue(results.stream().anyMatch(a -> a.getAnnouncementId().equals(closed.getAnnouncementId())));
+        org.junit.jupiter.api.Assertions.assertFalse(results.stream().anyMatch(a -> a.getAnnouncementId().equals(current.getAnnouncementId())));
+    }
+
+    @Test
+    void createAcceptsDateOnlyAndSameDayStartButRejectsTimestampAndReversedDates() throws Exception {
+        String request = """
+                {"title":"날짜 공고", "host":"주최", "field":"IDEA_PLANNING",
+                 "applicationStartsAt":"2026-12-20T18:00:00", "deadline":"%s"}
+                """;
+        mvc.perform(post("/api/v1/announcements").contentType("application/json").content(request.formatted("2026-12-20")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.deadline").value("2026-12-20"));
+        for (String invalid : new String[]{"2026-12-19", "2026-12-20T18:00:00"}) {
+            mvc.perform(post("/api/v1/announcements").contentType("application/json").content(request.formatted(invalid)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 
     @BeforeEach
     void setUp() {
@@ -37,7 +75,7 @@ class AnnouncementDetailTest {
     private Announcement save(LocalDateTime start, LocalDateTime deadline) {
         return repository.saveAndFlush(Announcement.builder()
                 .title("공고 상세 테스트").host("주최기관")
-                .applicationStartsAt(start).deadline(deadline)
+                .applicationStartsAt(start).deadline(deadline.toLocalDate())
                 .enrollmentRequirement("대학생").minMembers(2).maxMembers(5)
                 .region("서울").theme("환경").evaluationCriteria("독창성")
                 .submissionRequirements("기획서 PDF")

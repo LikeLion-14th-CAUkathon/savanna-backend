@@ -9,11 +9,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "announcements")
+@Table(name = "announcements", uniqueConstraints = @UniqueConstraint(
+        name = "uk_announcement_external", columnNames = {"source_provider", "external_id"}))
 public class Announcement {
 
     @Id
@@ -28,9 +30,9 @@ public class Announcement {
     // 접수 시작 시각
     private LocalDateTime applicationStartsAt;
 
-    // 접수 마감 시각
+    // 접수 마감일 (한국 날짜 기준, 당일까지 접수 가능)
     @Column(nullable = false)
-    private LocalDateTime deadline;
+    private LocalDate deadline;
 
     // 공고 분야
     @Enumerated(EnumType.STRING)
@@ -77,6 +79,18 @@ public class Announcement {
     @Column(length = 2000)
     private String applyUrl;
 
+    @Column(name = "source_provider", length = 40)
+    private String sourceProvider;
+    @Column(name = "external_id", length = 100)
+    private String externalId;
+    private String externalCategory;
+    private String applicationPeriodRaw;
+    // 외부 API의 참가 가능 지역. 기존 개최 지역(region)과 구분합니다.
+    private String participationRegion;
+    @Column(length = 2000)
+    private String posterUrl;
+    private LocalDateTime lastSyncedAt;
+
     // 공개 여부
     @Column(nullable = false)
     private boolean visibility = true;
@@ -91,7 +105,7 @@ public class Announcement {
     public Announcement(
             String title,
             LocalDateTime applicationStartsAt,
-            LocalDateTime deadline,
+            LocalDate deadline,
             AnnouncementField field,
             String host,
             Integer minMembers,
@@ -124,6 +138,26 @@ public class Announcement {
 
     public void changeVisibility(boolean visibility) {
         this.visibility = visibility;
+    }
+
+    public void syncContestKorea(String externalId, String category, String title, String host,
+            AnnouncementField field, LocalDate start, LocalDate deadline, String target,
+            String participationRegion, String periodRaw, String sourceUrl, String posterUrl) {
+        this.sourceProvider = "CONTEST_KOREA";
+        this.externalId = externalId;
+        this.externalCategory = category;
+        this.title = title;
+        this.host = host;
+        this.field = field;
+        // API에 시작 시각이 없어 날짜의 시작을 내부 기준으로 사용합니다.
+        this.applicationStartsAt = start.atStartOfDay();
+        this.deadline = deadline;
+        this.enrollmentRequirement = target;
+        this.participationRegion = participationRegion;
+        this.applicationPeriodRaw = periodRaw;
+        this.sourceUrl = sourceUrl;
+        this.posterUrl = posterUrl;
+        this.lastSyncedAt = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
     }
 
     @PrePersist

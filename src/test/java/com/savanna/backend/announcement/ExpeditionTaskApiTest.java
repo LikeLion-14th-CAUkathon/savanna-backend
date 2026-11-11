@@ -31,7 +31,7 @@ class ExpeditionTaskApiTest {
 
     @BeforeEach void setup() {
         var a = announcements.saveAndFlush(Announcement.builder().title("공고")
-                .deadline(date.plusDays(20).atTime(18, 0)).build());
+                .deadline(date.plusDays(20)).build());
         expedition = expeditions.saveAndFlush(new Expedition(1L, a));
         mvc = MockMvcBuilders.standaloneSetup(new ExpeditionTaskController(service))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();

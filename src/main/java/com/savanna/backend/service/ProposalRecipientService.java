@@ -36,6 +36,13 @@ public class ProposalRecipientService {
         return new ProposalPendingCountResponse(recipients.countByUser_UserIdAndStatus(userId, ProposalRecipientStatus.PENDING));
     }
 
+    public ProposalNotificationResponse notifications(Long userId) {
+        requireUser(userId);
+        long unreadProposals = recipients.countByUser_UserIdAndReadAtIsNull(userId);
+        long unreadResponses = recipients.countUnreadResponses(userId);
+        return new ProposalNotificationResponse(unreadProposals > 0 || unreadResponses > 0, unreadProposals, unreadResponses);
+    }
+
     @Transactional
     public ProposalRecipientResponse respond(Long userId, Long recipientId, ProposalRecipientStatus status) {
         requireUser(userId);
@@ -45,9 +52,9 @@ public class ProposalRecipientService {
         var recipient = recipients.findForResponse(recipientId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         if (!recipient.getUser().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
-        // 수신 기록을 잠가 동시에 온 응답도 한 번만 처리합니다.
-        recipient.respond(status);
-        if (status == ProposalRecipientStatus.JOINED) {
+        // 응답 변경·읽음·버전 갱신을 같은 수신 기록 잠금 아래 처리합니다.
+        boolean changed = recipient.respond(status);
+        if (changed && status == ProposalRecipientStatus.JOINED) {
             Long teamId = recipient.getProposal().getExpedition().getTeamId();
             var team = teams.findForProposalResponse(teamId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
@@ -57,6 +64,7 @@ public class ProposalRecipientService {
                 members.save(new TeamMember(recipient.getUser(), team, TeamRole.MEMBER));
             }
         }
+        // DECLINED로 변경해도 팀 소속·역할은 유지합니다. 원정 합류 집계는 현재 status로 계산합니다.
         return ProposalRecipientResponse.from(recipient);
     }
 

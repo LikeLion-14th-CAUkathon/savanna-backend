@@ -13,7 +13,7 @@ class ExpeditionTest {
 
     private Expedition expedition() {
         return new Expedition(1L, Announcement.builder().title("공고")
-                .deadline(deadline.atTime(18, 0)).build());
+                .deadline(deadline).build());
     }
 
     @Test void startsAtKickoffWithoutScheduleOrSubmission() {
