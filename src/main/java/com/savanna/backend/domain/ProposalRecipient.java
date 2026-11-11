@@ -58,10 +58,6 @@ public class ProposalRecipient {
         return true;
     }
 
-    public void markAsRead() {
-        if (readAt == null) readAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
-    }
-
     // 기존 응답 데이터의 새 버전 컬럼이 0이어도 최초 응답 버전 1로 취급합니다.
     public long getResponseVersion() {
         return status == ProposalRecipientStatus.PENDING ? 0 : Math.max(1, responseVersion);
@@ -79,5 +75,13 @@ public class ProposalRecipient {
         responseReadVersion = observedVersion;
         responseReadAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
         return true;
+    }
+
+    public void markAsRead() {
+        if (this.readAt == null) {
+            this.readAt = LocalDateTime.now(
+                    ZoneId.of("Asia/Seoul")
+            );
+        }
     }
 }

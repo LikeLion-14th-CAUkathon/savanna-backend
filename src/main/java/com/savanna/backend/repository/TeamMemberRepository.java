@@ -26,5 +26,4 @@ public interface TeamMemberRepository
             Long userId,
             Long teamId
     );
-
 }

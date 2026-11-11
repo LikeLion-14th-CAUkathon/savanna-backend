@@ -36,17 +36,6 @@ public class ProposalRecipientService {
         return new ProposalPendingCountResponse(recipients.countByUser_UserIdAndStatus(userId, ProposalRecipientStatus.PENDING));
     }
 
-    @Transactional
-    public ReceivedProposalResponse markAsRead(Long userId, Long recipientId) {
-        requireUser(userId);
-        if (recipientId == null || recipientId <= 0) throw new BusinessException(ErrorCode.INVALID_REQUEST);
-        var recipient = recipients.findForResponse(recipientId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        if (!recipient.getUser().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
-        recipient.markAsRead();
-        return ReceivedProposalResponse.from(recipient);
-    }
-
     public ProposalNotificationResponse notifications(Long userId) {
         requireUser(userId);
         long unreadProposals = recipients.countByUser_UserIdAndReadAtIsNull(userId);
@@ -77,5 +66,36 @@ public class ProposalRecipientService {
         }
         // DECLINED로 변경해도 팀 소속·역할은 유지합니다. 원정 합류 집계는 현재 status로 계산합니다.
         return ProposalRecipientResponse.from(recipient);
+    }
+
+    @Transactional
+    public ReceivedProposalResponse markAsRead(
+            Long userId,
+            Long recipientId
+    ) {
+        // 1. 로그인 사용자 확인
+        requireUser(userId);
+
+        // 2. 요청 ID 검증
+        if (recipientId == null || recipientId <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        // 3. 제안 수신 기록 조회
+        var recipient = recipients.findForResponse(recipientId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+                );
+
+        // 4. 본인이 받은 제안인지 확인
+        if (!recipient.getUser().getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        // 5. 읽음 처리
+        recipient.markAsRead();
+
+        // 6. 읽음 처리된 제안 정보 반환
+        return ReceivedProposalResponse.from(recipient);
     }
 }
