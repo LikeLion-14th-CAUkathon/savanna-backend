@@ -11,7 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-
+import org.springframework.web.cors.CorsUtils;
 import java.io.IOException;
 import java.util.List;
 
@@ -110,5 +110,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         + "\"message\":\"유효하지 않은 Access Token입니다.\","
                         + "\"data\":null}"
         );
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return CorsUtils.isPreFlightRequest(request);
     }
 }

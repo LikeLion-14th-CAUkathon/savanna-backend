@@ -19,6 +19,13 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.http.HttpMethod;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
+
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -43,6 +50,9 @@ public class SecurityConfig {
 
         http
                 .securityMatcher("/api/v1/**")
+                .cors(cors -> cors
+                        .configurationSource(corsConfigurationSource())
+                )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
@@ -66,7 +76,7 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
+                        .requestMatchers(HttpMethod.OPTIONS, "/**",
                                 "/api/v1/auth/csrf",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout"
@@ -110,8 +120,11 @@ public class SecurityConfig {
     ) throws Exception {
 
         http
+                .cors(cors -> cors
+                        .configurationSource(corsConfigurationSource())
+                )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
+                        .requestMatchers(HttpMethod.OPTIONS, "/**",
                                 "/",
                                 "/login",
                                 "/login-success",
@@ -130,8 +143,45 @@ public class SecurityConfig {
                                 .oidcUserService(customOidcUserService)
                         )
                         .successHandler(successHandler)
+
                 );
 
         return http.build();
+    }
+
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
+
+    @Bean
+    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        config.setAllowedOrigins(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(origin -> !origin.isBlank())
+                        .toList()
+        );
+
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"
+        ));
+
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "X-XSRF-TOKEN",
+                "X-CSRF-TOKEN"
+        ));
+
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }
