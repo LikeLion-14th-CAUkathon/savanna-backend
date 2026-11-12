@@ -75,16 +75,36 @@ public class SecurityConfig {
                             );
                         })
                 )
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**",
-                                "/api/v1/auth/csrf",
+
+                        // CORS 사전 요청 허용
+                        .requestMatchers(
+                                HttpMethod.OPTIONS,
+                                "/**"
+                        ).permitAll()
+
+                        // 인증 없이 CSRF 토큰 발급
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/auth/csrf"
+                        ).permitAll()
+
+                        // Refresh Token 재발급 및 로그아웃 허용
+                        // CSRF 검증은 기존 설정에서 별도로 수행
+                        .requestMatchers(
+                                HttpMethod.POST,
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout"
                         ).permitAll()
+
+                        // 초대 링크 미리보기는 로그인 없이 접근 가능
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/invitations/*"
                         ).permitAll()
+
+                        // 그 외 API는 로그인 필요
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -123,8 +143,17 @@ public class SecurityConfig {
                 .cors(cors -> cors
                         .configurationSource(corsConfigurationSource())
                 )
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**",
+
+                        // CORS 사전 요청 허용
+                        .requestMatchers(
+                                HttpMethod.OPTIONS,
+                                "/**"
+                        ).permitAll()
+
+                        // Google OAuth2 로그인 및 Swagger 공개 경로
+                        .requestMatchers(
                                 "/",
                                 "/login",
                                 "/login-success",
@@ -136,6 +165,8 @@ public class SecurityConfig {
                                 "/v3/api-docs",
                                 "/v3/api-docs/**"
                         ).permitAll()
+
+                        // 그 외 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
