@@ -1,3 +1,4 @@
+
 package com.savanna.backend.dto.response;
 
 import com.savanna.backend.domain.User;
@@ -12,8 +13,10 @@ public record UserResponseDto(
         String universityName,
         EnrollmentStatus enrollmentStatus,
         List<String> regions,
+        Integer characterId,
         boolean onboardingCompleted
 ) {
+
     public static UserResponseDto from(
             User user,
             List<String> regions
@@ -25,6 +28,7 @@ public record UserResponseDto(
                 user.getUniversityName(),
                 user.getEnrollmentStatus(),
                 regions,
+                user.getCharacterId(),
                 user.isOnboardingCompleted()
         );
     }

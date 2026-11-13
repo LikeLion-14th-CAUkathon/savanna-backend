@@ -1,6 +1,9 @@
+
 package com.savanna.backend.service;
 
 import com.savanna.backend.domain.User;
+import com.savanna.backend.domain.UserRegion;
+import com.savanna.backend.dto.request.UserUpdateRequestDto;
 import com.savanna.backend.dto.response.UserResponseDto;
 import com.savanna.backend.repository.UserRepository;
 import com.savanna.backend.repository.UserRegionRepository;
@@ -9,8 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import com.savanna.backend.domain.UserRegion;
-import com.savanna.backend.dto.request.UserUpdateRequestDto;
 
 import java.util.List;
 
@@ -35,7 +36,7 @@ public class UserService {
         List<String> regions = userRegionRepository
                 .findAllByUser_UserId(userId)
                 .stream()
-                .map(region -> region.getRegionCode())
+                .map(UserRegion::getRegionCode)
                 .toList();
 
         return UserResponseDto.from(user, regions);
@@ -61,12 +62,16 @@ public class UserService {
                 request.enrollmentStatus()
         );
 
-        // 2. 지역 정보가 전달된 경우에만 수정
+        // 2. 동물 캐릭터 수정
+        // 요청에서 생략하면 기존 캐릭터 유지
+        user.updateCharacter(request.characterId());
+
+        // 3. 지역 정보 수정
         List<String> regions;
 
         if (request.regions() != null) {
 
-            // 전달된 지역 중복 제거
+            // 전달된 지역의 중복 제거
             regions = request.regions()
                     .stream()
                     .map(String::trim)
@@ -99,25 +104,7 @@ public class UserService {
                     .toList();
         }
 
-
-        // 3. 기존 활동 지역 삭제
-        var oldRegions = userRegionRepository
-                .findAllByUser_UserId(userId);
-
-        userRegionRepository.deleteAll(oldRegions);
-        userRegionRepository.flush();
-
-        // 4. 새로운 활동 지역 저장
-        var newRegions = regions.stream()
-                .map(regionCode ->
-                        new UserRegion(user, regionCode)
-                )
-                .toList();
-
-        userRegionRepository.saveAll(newRegions);
-
-        // 5. 수정 결과 반환
+        // 4. 수정 결과 반환
         return UserResponseDto.from(user, regions);
     }
-
 }
