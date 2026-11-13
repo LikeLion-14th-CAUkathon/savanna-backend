@@ -1,3 +1,7 @@
+app:
+  oauth2:
+    success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:5173/login?google=success}
+
 spring:
   config:
     import: optional:classpath:application-secret.yml
