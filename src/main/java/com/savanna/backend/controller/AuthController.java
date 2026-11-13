@@ -1,6 +1,7 @@
 package com.savanna.backend.controller;
 
 import com.savanna.backend.service.AuthService;
+import com.savanna.backend.config.AuthCookieFactory;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 
-import java.time.Duration;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,9 +22,7 @@ import java.time.Duration;
 public class AuthController {
 
     private final AuthService authService;
-
-    @Value("${jwt.refresh-expiration}")
-    private long refreshExpiration;
+    private final AuthCookieFactory authCookies;
 
     @Value("${jwt.access-expiration}")
     private long accessExpiration;
@@ -50,14 +48,7 @@ public class AuthController {
                 authService.refresh(refreshToken);
 
         // 새 Refresh Token 쿠키 설정
-        ResponseCookie cookie = ResponseCookie
-                .from("refreshToken", result.refreshToken())
-                .httpOnly(true)
-                .secure(false) // 로컬 HTTP 개발 환경
-                .sameSite("Lax")
-                .path("/api/v1/auth")
-                .maxAge(Duration.ofMillis(refreshExpiration))
-                .build();
+        ResponseCookie cookie = authCookies.refreshToken(result.refreshToken());
 
         response.addHeader(
                 HttpHeaders.SET_COOKIE,
@@ -99,14 +90,7 @@ public class AuthController {
         }
 
         // 브라우저의 Refresh Token 쿠키 삭제
-        ResponseCookie cookie = ResponseCookie
-                .from("refreshToken", "")
-                .httpOnly(true)
-                .secure(false) // 로컬 개발 환경
-                .sameSite("Lax")
-                .path("/api/v1/auth")
-                .maxAge(Duration.ZERO)
-                .build();
+        ResponseCookie cookie = authCookies.clearRefreshToken();
 
         response.addHeader(
                 HttpHeaders.SET_COOKIE,

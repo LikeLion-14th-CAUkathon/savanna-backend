@@ -1,0 +1,10 @@
+# Activate with SPRING_PROFILES_ACTIVE=prod on the HTTPS backend.
+app:
+  auth:
+    cookie:
+      secure: ${AUTH_COOKIE_SECURE:true}
+      same-site: ${AUTH_COOKIE_SAME_SITE:None}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,https://savanna-frontend.vercel.app}
+  oauth2:
+    success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:https://savanna-frontend.vercel.app/login?google=success}
