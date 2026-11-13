@@ -33,6 +33,9 @@ public class OAuth2LoginSuccessHandler
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
+    @Value("${app.oauth2.success-redirect-url:http://localhost:5173/login?google=success}")
+    private String successRedirectUrl;
+
     @Override
     @Transactional
     public void onAuthenticationSuccess(
@@ -88,7 +91,7 @@ public class OAuth2LoginSuccessHandler
                 cookie.toString()
         );
 
-        // 임시 로그인 성공 페이지
-        response.sendRedirect("/login-success");
+        // 토큰은 쿠키에만 보관하고 프런트에서 후속 인증 처리를 진행합니다.
+        response.sendRedirect(successRedirectUrl);
     }
 }
