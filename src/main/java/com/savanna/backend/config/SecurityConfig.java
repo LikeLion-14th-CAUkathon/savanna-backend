@@ -34,6 +34,7 @@ public class SecurityConfig {
     private final OAuth2LoginSuccessHandler successHandler;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final AuthCookieFactory authCookies;
 
     // JWT 기반 API 인증
     @Bean
@@ -60,7 +61,7 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(
-                                CookieCsrfTokenRepository.withHttpOnlyFalse()
+                                csrfTokenRepository()
                         )
                         .csrfTokenRequestHandler(
                                 new CsrfTokenRequestAttributeHandler()
@@ -182,6 +183,14 @@ public class SecurityConfig {
 
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
+
+    @Bean
+    public CookieCsrfTokenRepository csrfTokenRepository() {
+        var repository=CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookiePath("/");
+        repository.setCookieCustomizer(authCookies::customizeCsrfCookie);
+        return repository;
+    }
 
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
