@@ -37,4 +37,8 @@ out/
 .vscode/
 
 # 민감한 설정 파일 무시
-src/main/resources/application-secret.yml
+/src/main/resources/application-secret.yml
+
+/data/
+/tmp/db-backups/
+/tmp/import-reports/

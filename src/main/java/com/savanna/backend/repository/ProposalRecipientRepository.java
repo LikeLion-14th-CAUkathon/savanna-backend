@@ -1,7 +1,64 @@
 package com.savanna.backend.repository;
 
-/**
- * Structure placeholder. Fields and behavior will be implemented with the API.
- */
-public interface ProposalRecipientRepository {
+import com.savanna.backend.domain.ProposalRecipient;
+import com.savanna.backend.enums.ProposalRecipientStatus;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+import java.util.List;
+
+public interface ProposalRecipientRepository extends JpaRepository<ProposalRecipient, Long> {
+    @EntityGraph(attributePaths = {"user", "proposal"})
+    List<ProposalRecipient> findAllByProposal_Expedition_ExpeditionIdOrderByProposalRecipientIdAsc(Long expeditionId);
+
+    @EntityGraph(attributePaths = "user")
+    List<ProposalRecipient> findAllByProposal_ProposalIdOrderByProposalRecipientIdAsc(Long proposalId);
+
+    long countByUser_UserIdAndStatus(Long userId, ProposalRecipientStatus status);
+    long countByUser_UserIdAndReadAtIsNull(Long userId);
+
+    @Query("""
+            select count(r) from ProposalRecipient r
+            where r.proposal.sender.userId = :userId
+              and r.user.userId <> :userId
+              and r.status <> com.savanna.backend.enums.ProposalRecipientStatus.PENDING
+              and (case when r.responseVersion = 0 then 1 else r.responseVersion end) > r.responseReadVersion
+            """)
+    long countUnreadResponses(@Param("userId") Long userId);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from ProposalRecipient r where r.proposalRecipientId = :id")
+    java.util.Optional<ProposalRecipient> findForResponse(@Param("id") Long id);
+
+    interface ExpeditionJoinedCount {
+        Long getExpeditionId();
+        Long getJoinedCount();
+    }
+
+    @Query("""
+            select r.proposal.expedition.expeditionId as expeditionId,
+                   count(distinct r.user.userId) as joinedCount
+            from ProposalRecipient r
+            where r.proposal.expedition.teamId = :teamId and r.status = :status
+              and r.user.userId <> r.proposal.sender.userId
+            group by r.proposal.expedition.expeditionId
+            """)
+    List<ExpeditionJoinedCount> countDistinctUsersByTeamAndStatus(
+            @Param("teamId") Long teamId, @Param("status") ProposalRecipientStatus status);
+
+    @EntityGraph(attributePaths = {
+            "proposal",
+            "proposal.sender",
+            "proposal.expedition",
+            "proposal.expedition.announcement"
+    })
+    @Query("""
+        select r
+        from ProposalRecipient r
+        where r.user.userId = :userId
+        order by r.proposal.createdAt desc,
+                 r.proposalRecipientId desc
+        """)
+    List<ProposalRecipient> findReceivedProposals(
+            @Param("userId") Long userId
+    );
 }

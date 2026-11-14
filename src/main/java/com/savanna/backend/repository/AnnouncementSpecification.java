@@ -6,6 +6,7 @@ import com.savanna.backend.enums.ReceptionStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Locale;
 
 public final class AnnouncementSpecification {
@@ -22,6 +23,7 @@ public final class AnnouncementSpecification {
         return (root, query, cb) -> {
             // 공개 공고만 조회
             var predicate = cb.isTrue(root.get("visibility"));
+            predicate = cb.and(predicate, cb.isNull(root.get("excludeReason")), cb.isNull(root.get("classificationIssue")));
 
             // 제목 또는 주최기관 검색
             if (keyword != null && !keyword.isBlank()) {
@@ -61,9 +63,9 @@ public final class AnnouncementSpecification {
             if (status == null) {
                 predicate = cb.and(
                         predicate,
-                        cb.greaterThan(
-                                root.<LocalDateTime>get("deadline"),
-                                now
+                        cb.greaterThanOrEqualTo(
+                                root.<LocalDate>get("deadline"),
+                                now.toLocalDate()
                         )
                 );
 
@@ -76,28 +78,25 @@ public final class AnnouncementSpecification {
                                     ),
                                     now
                             ),
-                            cb.greaterThan(
-                                    root.<LocalDateTime>get("deadline"),
-                                    now
+                            cb.greaterThanOrEqualTo(
+                                    root.<LocalDate>get("deadline"),
+                                    now.toLocalDate()
                             )
                     );
 
                     case OPEN -> cb.and(
                             cb.lessThanOrEqualTo(
-                                    root.<LocalDateTime>get(
-                                            "applicationStartsAt"
-                                    ),
-                                    now
+                                    root.<LocalDateTime>get("applicationStartsAt"), now
                             ),
-                            cb.greaterThan(
-                                    root.<LocalDateTime>get("deadline"),
-                                    now
+                            cb.greaterThanOrEqualTo(
+                                    root.<LocalDate>get("deadline"),
+                                    now.toLocalDate()
                             )
                     );
 
-                    case CLOSED -> cb.lessThanOrEqualTo(
-                            root.<LocalDateTime>get("deadline"),
-                            now
+                    case CLOSED -> cb.lessThan(
+                            root.<LocalDate>get("deadline"),
+                            now.toLocalDate()
                     );
                 };
 

@@ -29,13 +29,25 @@ public class User {
     @Enumerated(EnumType.STRING)
     private EnrollmentStatus enrollmentStatus;
 
+    // 프런트 캐릭터 apiId(1~9). 미설정 사용자는 null이며 임의로 배정하지 않습니다.
+    @Column(name = "character_id")
+    private Integer characterId;
+
     @Column(nullable = false)
     private boolean onboardingCompleted = false;
 
-    // 구글 로그인 성공 시 사용자 생성
     public User(String email, String googleSub) {
+        this(email, googleSub, null);
+    }
+
+    public User(
+            String email,
+            String googleSub,
+            String googleName
+    ) {
         this.email = email;
         this.googleSub = googleSub;
+        this.name = googleName;
     }
 
     // 프로필 수정
@@ -56,16 +68,29 @@ public class User {
         this.onboardingCompleted = true;
     }
 
+    public void updateCharacter(Integer characterId) {
+        if(characterId==null)throw new IllegalArgumentException("캐릭터를 선택해 주세요.");
+        if(characterId<1||characterId>9)throw new IllegalArgumentException("캐릭터 ID는 1~9여야 합니다.");
+        this.characterId=characterId;
+    }
 
     public void updateProfile(
             String name,
             String universityName,
             EnrollmentStatus enrollmentStatus
     ) {
-        this.name = name;
-        this.universityName = universityName;
-        this.enrollmentStatus = enrollmentStatus;
+        if (name != null) {
+            this.name = name.trim();
+        }
+
+        if (universityName != null) {
+            this.universityName = universityName;
+        }
+
+        if (enrollmentStatus != null) {
+            this.enrollmentStatus = enrollmentStatus;
+        }
+
         this.onboardingCompleted = true;
     }
-
 }

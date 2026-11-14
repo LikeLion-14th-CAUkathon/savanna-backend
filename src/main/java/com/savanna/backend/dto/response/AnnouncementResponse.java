@@ -4,6 +4,7 @@ import com.savanna.backend.domain.Announcement;
 import com.savanna.backend.enums.AnnouncementField;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public record AnnouncementResponse(
         Long announcementId,
@@ -11,7 +12,7 @@ public record AnnouncementResponse(
         String host,
         AnnouncementField field,
         LocalDateTime applicationStartsAt,
-        LocalDateTime deadline
+        LocalDate deadline
 ) {
 
     public static AnnouncementResponse from(

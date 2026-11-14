@@ -1,6 +1,7 @@
 package com.savanna.backend.handler;
 
 import com.savanna.backend.domain.RefreshToken;
+import com.savanna.backend.config.AuthCookieFactory;
 import com.savanna.backend.domain.User;
 import com.savanna.backend.jwt.JwtTokenProvider;
 import com.savanna.backend.repository.RefreshTokenRepository;
@@ -18,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.Instant;
 
 @Component
@@ -29,9 +29,13 @@ public class OAuth2LoginSuccessHandler
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AuthCookieFactory authCookies;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
+
+    @Value("${app.oauth2.success-redirect-url:http://localhost:5173/login?google=success}")
+    private String successRedirectUrl;
 
     @Override
     @Transactional
@@ -74,21 +78,14 @@ public class OAuth2LoginSuccessHandler
         refreshTokenRepository.save(savedToken);
 
         // Refresh Token을 HttpOnly 쿠키로 전달
-        ResponseCookie cookie = ResponseCookie
-                .from("refreshToken", refreshToken)
-                .httpOnly(true)
-                .secure(false) // 로컬 HTTP 개발 환경
-                .sameSite("Lax")
-                .path("/api/v1/auth")
-                .maxAge(Duration.ofMillis(refreshExpiration))
-                .build();
+        ResponseCookie cookie = authCookies.refreshToken(refreshToken);
 
         response.addHeader(
                 HttpHeaders.SET_COOKIE,
                 cookie.toString()
         );
 
-        // 임시 로그인 성공 페이지
-        response.sendRedirect("/login-success");
+        // 토큰은 쿠키에만 보관하고 프런트에서 후속 인증 처리를 진행합니다.
+        response.sendRedirect(successRedirectUrl);
     }
 }

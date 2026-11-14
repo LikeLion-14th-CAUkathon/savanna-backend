@@ -1,5 +1,7 @@
 package com.savanna.backend.service;
 
+import com.savanna.backend.domain.Announcement;
+import com.savanna.backend.dto.request.AnnouncementCreateRequest;
 import com.savanna.backend.dto.response.AnnouncementResponse;
 import com.savanna.backend.dto.response.AnnouncementDetailResponse;
 import com.savanna.backend.error.BusinessException;
@@ -24,6 +26,7 @@ import java.time.ZoneId;
 public class AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
+    private final AnnouncementAudienceService audiences;
 
     public AnnouncementDetailResponse getAnnouncement(Long announcementId) {
         if (announcementId == null || announcementId <= 0) {
@@ -52,7 +55,7 @@ public class AnnouncementService {
             );
         }
 
-        // 공고 날짜를 한국 시간 기준으로 저장하는 전제
+        // 접수 시작은 한국 시각, 마감은 한국 날짜 기준으로 비교합니다.
         LocalDateTime now = LocalDateTime.now(
                 ZoneId.of("Asia/Seoul")
         );
@@ -79,5 +82,38 @@ public class AnnouncementService {
         return announcementRepository
                 .findAll(specification, pageRequest)
                 .map(AnnouncementResponse::from);
+    }
+
+    @Transactional
+    public AnnouncementResponse createAnnouncement(
+            AnnouncementCreateRequest request
+    ) {
+        Announcement announcement = Announcement.builder()
+                .title(request.title().trim())
+                .applicationStartsAt(request.applicationStartsAt())
+                .deadline(request.deadline())
+                .field(request.field())
+                .host(request.host().trim())
+                .minMembers(request.minMembers())
+                .maxMembers(request.maxMembers())
+                .evaluationCriteria(request.evaluationCriteria())
+                .enrollmentRequirement(request.enrollmentRequirement())
+                .region(request.region())
+                .theme(request.theme())
+                .applicationMethod(request.applicationMethod())
+                .submissionRequirements(request.submissionRequirements())
+                .sourceUrl(request.sourceUrl())
+                .applyUrl(request.applyUrl())
+                .applicationInstructions(request.applicationInstructions())
+                .formNote(request.formNote())
+                .lengthNote(request.lengthNote())
+                .consentRequirements(request.consentRequirements())
+                .participationRegion(request.participationRegion())
+                .venueNote(request.venueNote())
+                .build();
+
+        announcementRepository.save(announcement);
+        audiences.apply(announcement,"MANUAL");
+        return AnnouncementResponse.from(announcement);
     }
 }

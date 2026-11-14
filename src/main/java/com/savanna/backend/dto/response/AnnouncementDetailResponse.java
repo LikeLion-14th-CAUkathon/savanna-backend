@@ -5,8 +5,8 @@ import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ApplicationMethod;
 import com.savanna.backend.enums.ReceptionStatus;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.ZoneId;
 
 public record AnnouncementDetailResponse(
@@ -15,7 +15,7 @@ public record AnnouncementDetailResponse(
         String host,
         AnnouncementField field,
         LocalDateTime applicationStartsAt,
-        LocalDateTime deadline,
+        LocalDate deadline,
         ReceptionStatus receptionStatus,
         String enrollmentRequirement,
         Integer minMembers,
@@ -25,17 +25,20 @@ public record AnnouncementDetailResponse(
         String evaluationCriteria,
         ApplicationMethod applicationMethod,
         String submissionRequirements,
-        String restrictions,
-        String benefits,
-        String contactEmail,
         String sourceUrl,
         String applyUrl,
-        BigDecimal cost
+        String participationRegion,
+        String posterUrl,
+        String applicationPeriodRaw,
+        String applicationInstructions, String formNote, String lengthNote, String teamType,
+        String csvRequiredRegionRaw, String venueNote, String detailStatus, String dateSource,
+        @io.swagger.v3.oas.annotations.media.Schema(description = "동의서 제출 안내. 미확인 시 null이며 제출 불필요 또는 사용자의 동의 여부를 뜻하지 않습니다.", nullable = true)
+        String consentRequirements
 ) {
     public static AnnouncementDetailResponse from(Announcement announcement) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
         ReceptionStatus status;
-        if (!announcement.getDeadline().isAfter(now)) {
+        if (announcement.getDeadline().isBefore(now.toLocalDate())) {
             status = ReceptionStatus.CLOSED;
         } else if (announcement.getApplicationStartsAt() != null
                 && announcement.getApplicationStartsAt().isAfter(now)) {
@@ -50,9 +53,12 @@ public record AnnouncementDetailResponse(
                 announcement.getEnrollmentRequirement(), announcement.getMinMembers(),
                 announcement.getMaxMembers(), announcement.getRegion(), announcement.getTheme(),
                 announcement.getEvaluationCriteria(), announcement.getApplicationMethod(),
-                announcement.getSubmissionRequirements(), announcement.getRestrictions(),
-                announcement.getBenefits(), announcement.getContactEmail(),
-                announcement.getSourceUrl(), announcement.getApplyUrl(), announcement.getCost()
+                announcement.getSubmissionRequirements(),
+                announcement.getSourceUrl(), announcement.getApplyUrl(),
+                announcement.getParticipationRegion(), announcement.getPosterUrl(), announcement.getApplicationPeriodRaw(),
+                announcement.getApplicationInstructions(), announcement.getFormNote(), announcement.getLengthNote(), announcement.getTeamType(),
+                announcement.getCsvRequiredRegionRaw(), announcement.getVenueNote(), announcement.getDetailStatus(), announcement.getDateSource(),
+                announcement.getConsentRequirements()
         );
     }
 }

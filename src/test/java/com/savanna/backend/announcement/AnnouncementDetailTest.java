@@ -13,11 +13,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -26,7 +26,92 @@ class AnnouncementDetailTest {
     @Autowired AnnouncementRepository repository;
     @Autowired AnnouncementService service;
     @Autowired com.savanna.backend.service.AnnouncementEligibilityService eligibilityService;
+    @Autowired jakarta.persistence.EntityManager entityManager;
     MockMvc mvc;
+
+    @Test
+    void deadlineDayRemainsOpenAndListsUseTheSameDateBoundary() throws Exception {
+        var now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        var today = now.toLocalDate();
+        var current = save(now.minusDays(2), today.atStartOfDay());
+        var closed = save(now.minusDays(3), today.minusDays(1).atStartOfDay());
+        mvc.perform(get("/api/v1/announcements/{id}", current.getAnnouncementId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deadline").value(today.toString()))
+                .andExpect(jsonPath("$.receptionStatus").value("OPEN"));
+        // 23:59:59에도 마감일 당일 공고는 OPEN이고 어제 공고만 CLOSED입니다.
+        var atEndOfDay = today.atTime(23, 59, 59);
+        for (var filter : new com.savanna.backend.enums.ReceptionStatus[]{null, com.savanna.backend.enums.ReceptionStatus.OPEN}) {
+            var results = repository.findAll(com.savanna.backend.repository.AnnouncementSpecification.search(null, null, filter, atEndOfDay));
+            org.junit.jupiter.api.Assertions.assertTrue(results.stream().anyMatch(a -> a.getAnnouncementId().equals(current.getAnnouncementId())));
+            org.junit.jupiter.api.Assertions.assertFalse(results.stream().anyMatch(a -> a.getAnnouncementId().equals(closed.getAnnouncementId())));
+        }
+        var results = repository.findAll(com.savanna.backend.repository.AnnouncementSpecification.search(
+                null, null, com.savanna.backend.enums.ReceptionStatus.CLOSED, today.atStartOfDay()));
+        org.junit.jupiter.api.Assertions.assertTrue(results.stream().anyMatch(a -> a.getAnnouncementId().equals(closed.getAnnouncementId())));
+        org.junit.jupiter.api.Assertions.assertFalse(results.stream().anyMatch(a -> a.getAnnouncementId().equals(current.getAnnouncementId())));
+    }
+
+    @Test
+    void createAcceptsDateOnlyAndSameDayStartButRejectsTimestampAndReversedDates() throws Exception {
+        String request = """
+                {"title":"날짜 공고", "host":"주최", "field":"IDEA_ARCHITECTURE_STARTUP",
+                 "applicationStartsAt":"2026-12-20T18:00:00", "deadline":"%s"}
+                """;
+        mvc.perform(post("/api/v1/announcements").contentType("application/json").content(request.formatted("2026-12-20")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.deadline").value("2026-12-20"));
+        for (String invalid : new String[]{"2026-12-19", "2026-12-20T18:00:00"}) {
+            mvc.perform(post("/api/v1/announcements").contentType("application/json").content(request.formatted(invalid)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void createsPersistsAndReturnsFormConsentAndApplicationDetails() throws Exception {
+        var created=mvc.perform(post("/api/v1/announcements").contentType("application/json").content("""
+                {"title":"상세 보완 테스트", "host":"테스트 주최", "field":"IDEA_ARCHITECTURE_STARTUP", "deadline":"2026-12-31",
+                 "enrollmentRequirement":"대학생", "minMembers":2, "maxMembers":5,
+                 "applicationInstructions":"  주최 측 접수 페이지에서 온라인 제출  ",
+                 "submissionRequirements":"아이디어 기획서 PDF, 참가 신청서",
+                 "formNote":"주최 측 지정 양식 사용", "lengthNote":"10쪽 이내",
+                 "consentRequirements":"  개인정보 수집·이용 동의서 · 팀원 전원 서명  ",
+                 "participationRegion":"전국", "region":"서울", "venueNote":"온라인 · 서울 현장 발표"}
+                """))
+                .andExpect(status().isCreated()).andReturn().getResponse();
+        long id=tools.jackson.databind.json.JsonMapper.builder().build().readTree(created.getContentAsString()).get("announcementId").asLong();
+        repository.flush();entityManager.clear();
+        mvc.perform(get("/api/v1/announcements/{id}",id)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.applicationInstructions").value("주최 측 접수 페이지에서 온라인 제출"))
+                .andExpect(jsonPath("$.formNote").value("주최 측 지정 양식 사용"))
+                .andExpect(jsonPath("$.lengthNote").value("10쪽 이내"))
+                .andExpect(jsonPath("$.consentRequirements").value("개인정보 수집·이용 동의서 · 팀원 전원 서명"))
+                .andExpect(jsonPath("$.participationRegion").value("전국"))
+                .andExpect(jsonPath("$.venueNote").value("온라인 · 서울 현장 발표"));
+    }
+
+    @Test
+    void absentConsentIsExplicitJsonNullAndDoesNotMeanConsentIsUnnecessary() throws Exception {
+        var announcement=save(null,LocalDateTime.now().plusDays(5));
+        var response=mvc.perform(get("/api/v1/announcements/{id}",announcement.getAnnouncementId()))
+                .andExpect(status().isOk()).andReturn().getResponse();
+        var tree=tools.jackson.databind.json.JsonMapper.builder().build().readTree(response.getContentAsString());
+        org.junit.jupiter.api.Assertions.assertTrue(tree.has("consentRequirements"));
+        org.junit.jupiter.api.Assertions.assertTrue(tree.get("consentRequirements").isNull());
+        for(String unknown:new String[]{"", "  ", "원문 참고"}){
+            var value=Announcement.builder().title("테스트").deadline(LocalDateTime.now().toLocalDate()).consentRequirements(unknown).build();
+            org.junit.jupiter.api.Assertions.assertNull(value.getConsentRequirements());
+        }
+    }
+
+    @Test
+    void rejectsOversizedConsent() throws Exception {
+        var request=new java.util.LinkedHashMap<String,Object>();
+        request.put("title","테스트");request.put("host","테스트");request.put("field","IDEA_ARCHITECTURE_STARTUP");request.put("deadline","2026-12-31");
+        request.put("consentRequirements","가".repeat(10001));
+        mvc.perform(post("/api/v1/announcements").contentType("application/json")
+                        .content(tools.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
 
     @BeforeEach
     void setUp() {
@@ -38,13 +123,12 @@ class AnnouncementDetailTest {
     private Announcement save(LocalDateTime start, LocalDateTime deadline) {
         return repository.saveAndFlush(Announcement.builder()
                 .title("공고 상세 테스트").host("주최기관")
-                .applicationStartsAt(start).deadline(deadline)
+                .applicationStartsAt(start).deadline(deadline.toLocalDate())
                 .enrollmentRequirement("대학생").minMembers(2).maxMembers(5)
                 .region("서울").theme("환경").evaluationCriteria("독창성")
-                .submissionRequirements("기획서 PDF").restrictions("중복 출품 불가")
-                .benefits("멘토링").contactEmail("help@example.com")
+                .submissionRequirements("기획서 PDF")
                 .sourceUrl("https://example.com/notice").applyUrl("https://example.com/apply")
-                .cost(BigDecimal.ZERO).build());
+                .build());
     }
 
     @Test
@@ -88,12 +172,12 @@ class AnnouncementDetailTest {
                 .andExpect(jsonPath("$.theme").value("환경"))
                 .andExpect(jsonPath("$.evaluationCriteria").value("독창성"))
                 .andExpect(jsonPath("$.submissionRequirements").value("기획서 PDF"))
-                .andExpect(jsonPath("$.restrictions").value("중복 출품 불가"))
-                .andExpect(jsonPath("$.benefits").value("멘토링"))
-                .andExpect(jsonPath("$.contactEmail").value("help@example.com"))
+                .andExpect(jsonPath("$.restrictions").doesNotExist())
+                .andExpect(jsonPath("$.benefits").doesNotExist())
+                .andExpect(jsonPath("$.contactEmail").doesNotExist())
                 .andExpect(jsonPath("$.sourceUrl").value("https://example.com/notice"))
                 .andExpect(jsonPath("$.applyUrl").value("https://example.com/apply"))
-                .andExpect(jsonPath("$.cost").value(0))
+                .andExpect(jsonPath("$.cost").doesNotExist())
                 .andExpect(jsonPath("$.receptionStatus").value("OPEN"));
     }
 

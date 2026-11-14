@@ -1,9 +1,19 @@
+app:
+  auth:
+    cookie:
+      secure: ${AUTH_COOKIE_SECURE:false}
+      same-site: ${AUTH_COOKIE_SAME_SITE:Lax}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  oauth2:
+    success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:5173/login?google=success}
+
 spring:
   config:
     import: optional:classpath:application-secret.yml
 
   datasource:
-    url: jdbc:h2:mem:savannadb
+    url: jdbc:h2:file:./data/savanna
     driver-class-name: org.h2.Driver
     username: sa
     password:
