@@ -14,7 +14,12 @@ public record UserUpdateRequestDto(
         @NotBlank String name,
         String universityName,
         EnrollmentStatus enrollmentStatus,
-        List<@NotBlank String> regions
+        List<@NotBlank String> regions,
+        @jakarta.validation.constraints.NotNull(message="캐릭터를 선택해 주세요.")
+        @jakarta.validation.constraints.Min(1)
+        @jakarta.validation.constraints.Max(9)
+        @io.swagger.v3.oas.annotations.media.Schema(description="필수 선택 캐릭터 숫자 ID(1~9). 생략/null은 400", allowableValues={"1","2","3","4","5","6","7","8","9"})
+        Integer characterId
 ) {
         @AssertTrue(message = "올바르지 않은 지역 코드가 포함되어 있습니다.")
         public boolean isValidRegions() {

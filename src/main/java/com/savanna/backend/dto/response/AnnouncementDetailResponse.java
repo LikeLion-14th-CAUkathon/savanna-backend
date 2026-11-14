@@ -31,7 +31,9 @@ public record AnnouncementDetailResponse(
         String posterUrl,
         String applicationPeriodRaw,
         String applicationInstructions, String formNote, String lengthNote, String teamType,
-        String csvRequiredRegionRaw, String venueNote, String detailStatus, String dateSource
+        String csvRequiredRegionRaw, String venueNote, String detailStatus, String dateSource,
+        @io.swagger.v3.oas.annotations.media.Schema(description = "동의서 제출 안내. 미확인 시 null이며 제출 불필요 또는 사용자의 동의 여부를 뜻하지 않습니다.", nullable = true)
+        String consentRequirements
 ) {
     public static AnnouncementDetailResponse from(Announcement announcement) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
@@ -55,7 +57,8 @@ public record AnnouncementDetailResponse(
                 announcement.getSourceUrl(), announcement.getApplyUrl(),
                 announcement.getParticipationRegion(), announcement.getPosterUrl(), announcement.getApplicationPeriodRaw(),
                 announcement.getApplicationInstructions(), announcement.getFormNote(), announcement.getLengthNote(), announcement.getTeamType(),
-                announcement.getCsvRequiredRegionRaw(), announcement.getVenueNote(), announcement.getDetailStatus(), announcement.getDateSource()
+                announcement.getCsvRequiredRegionRaw(), announcement.getVenueNote(), announcement.getDetailStatus(), announcement.getDateSource(),
+                announcement.getConsentRequirements()
         );
     }
 }

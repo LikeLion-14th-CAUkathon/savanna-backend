@@ -22,11 +22,13 @@ class ContestKoreaSupplementTest {
     @Test void supplementsRemainAfterApiRefreshAndEmptyCellsAndExclusionHidesAllPublicReads(){
         api.save(ContestKoreaCategory.IDEA,List.of(item("supplement","아이디어•건축•창업")));
         var row=row("supplement");row.put("topic","검증된 주제");row.put("team_min","2");row.put("exclude_reason","원문 확인 후 제외");
+        row.put("consent_requirements","참가자 개인정보 동의서 제출");
         var result=csv.apply(List.of(row),"fixture");assertEquals(1,result.updated());assertEquals(1,result.dateConflicts());assertEquals(1,result.excluded());
-        var empty=row("supplement");empty.put("topic","");empty.put("team_min","");csv.apply(List.of(empty),"fixture");
+        var empty=row("supplement");empty.put("topic","");empty.put("team_min","");empty.put("consent_requirements","");csv.apply(List.of(empty),"fixture");
         api.save(ContestKoreaCategory.IDEA,List.of(item("supplement","아이디어•건축•창업")));
         var saved=repository.findBySourceProviderAndExternalId("CONTEST_KOREA","supplement").orElseThrow();
         assertEquals("검증된 주제",saved.getTheme());assertEquals(2,saved.getMinMembers());assertNull(saved.getMaxMembers());
+        assertEquals("참가자 개인정보 동의서 제출",saved.getConsentRequirements());
         assertEquals(LocalDate.of(2027,1,10),saved.getDeadline());assertEquals("CSV",saved.getDateSource());assertNotNull(saved.getApiDeadline());assertFalse(saved.isAvailable());
         assertTrue(repository.findByAnnouncementIdAndVisibilityTrue(saved.getAnnouncementId()).isEmpty());
     }

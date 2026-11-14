@@ -60,6 +60,7 @@ public class UserService {
                 request.universityName(),
                 request.enrollmentStatus()
         );
+        user.updateCharacter(request.characterId());
 
         // 2. 지역 정보가 전달된 경우에만 수정
         List<String> regions;

@@ -55,6 +55,9 @@ tasks.register('importContestKorea', JavaExec) {
 	args "--contest-korea.import.category=${providers.gradleProperty('contestKoreaCategory').getOrElse('IDEA')}"
 	args "--contest-korea.import.backup-only=${providers.gradleProperty('contestKoreaBackupOnly').getOrElse('false')}"
 	args "--contest-korea.import.migrate-fields=${providers.gradleProperty('contestKoreaMigrate').getOrElse('false')}"
+	if (providers.gradleProperty('contestKoreaAudience').isPresent()) {
+		args "--contest-korea.import.audience-only=${providers.gradleProperty('contestKoreaAudience').get()}"
+	}
 	if (providers.gradleProperty('contestKoreaCsv').isPresent()) {
 		args "--contest-korea.import.csv=${providers.gradleProperty('contestKoreaCsv').get()}"
 	}

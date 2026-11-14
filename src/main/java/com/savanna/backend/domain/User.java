@@ -29,6 +29,10 @@ public class User {
     @Enumerated(EnumType.STRING)
     private EnrollmentStatus enrollmentStatus;
 
+    // 프런트 캐릭터 apiId(1~9). 미설정 사용자는 null이며 임의로 배정하지 않습니다.
+    @Column(name = "character_id")
+    private Integer characterId;
+
     @Column(nullable = false)
     private boolean onboardingCompleted = false;
 
@@ -62,6 +66,12 @@ public class User {
 
     public void completeOnboarding() {
         this.onboardingCompleted = true;
+    }
+
+    public void updateCharacter(Integer characterId) {
+        if(characterId==null)throw new IllegalArgumentException("캐릭터를 선택해 주세요.");
+        if(characterId<1||characterId>9)throw new IllegalArgumentException("캐릭터 ID는 1~9여야 합니다.");
+        this.characterId=characterId;
     }
 
     public void updateProfile(

@@ -12,7 +12,9 @@ public record UserResponseDto(
         String universityName,
         EnrollmentStatus enrollmentStatus,
         List<String> regions,
-        boolean onboardingCompleted
+        boolean onboardingCompleted,
+        @io.swagger.v3.oas.annotations.media.Schema(description="선택 캐릭터 숫자 ID(1~9). 미설정은 null",nullable=true)
+        Integer characterId
 ) {
     public static UserResponseDto from(
             User user,
@@ -25,7 +27,8 @@ public record UserResponseDto(
                 user.getUniversityName(),
                 user.getEnrollmentStatus(),
                 regions,
-                user.isOnboardingCompleted()
+                user.isOnboardingCompleted(),
+                user.getCharacterId()
         );
     }
 }

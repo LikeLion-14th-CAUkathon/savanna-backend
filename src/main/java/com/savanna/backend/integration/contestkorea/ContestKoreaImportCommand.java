@@ -49,6 +49,14 @@ public final class ContestKoreaImportCommand {
             if (!databaseUrl.startsWith("jdbc:h2:file:") && !databaseUrl.startsWith("jdbc:h2:mem:")) {
                 throw new IllegalStateException("Manual import/migration is restricted to local H2. Do not target EC2 remotely.");
             }
+            String audienceMode=environment.getProperty("contest-korea.import.audience-only","");
+            if(!audienceMode.isBlank()) {
+                try {
+                    var result=AnnouncementAudienceMigration.run(databaseUrl,environment.getProperty("spring.datasource.username","sa"),
+                            environment.getProperty("spring.datasource.password",""),audienceMode);
+                    throw new AudiencePolicyComplete(result);
+                }catch(java.sql.SQLException failure){throw new IllegalStateException("Audience policy pass failed.",failure);}
+            }
             if (environment.getProperty("contest-korea.import.migrate-fields", Boolean.class, false)) {
                 try {
                     String csvPath=environment.getProperty("contest-korea.import.csv", "");
@@ -68,6 +76,17 @@ public final class ContestKoreaImportCommand {
         try {
             context = application.run(options.toArray(String[]::new));
         } catch (Exception exception) {
+            if(exception instanceof AudiencePolicyComplete complete) {
+                var report=JsonMapper.builder().build().writerWithDefaultPrettyPrinter().writeValueAsString(complete.result);
+                System.out.println("ANNOUNCEMENT_AUDIENCE_RESULT "+report);
+                try {
+                    var directory=java.nio.file.Path.of("tmp/import-reports");java.nio.file.Files.createDirectories(directory);
+                    var path=directory.resolve("announcement-audience-"+UUID.randomUUID()+".json");
+                    java.nio.file.Files.writeString(path,report);
+                    System.out.println("ANNOUNCEMENT_AUDIENCE_REPORT "+path.toAbsolutePath());
+                    return 0;
+                }catch(java.io.IOException failure){System.out.println("ANNOUNCEMENT_AUDIENCE_REPORT_FAILED mode="+complete.result.mode()+" changed="+complete.result.changed());return 2;}
+            }
             if (exception instanceof BackupOnlyComplete) {
                 System.out.println("CONTEST_KOREA_BACKUP_ONLY_COMPLETE importExecuted=false originalDatabaseConnected=false");
                 return 0;
@@ -136,6 +155,10 @@ public final class ContestKoreaImportCommand {
     }
 
     private static final class BackupOnlyComplete extends RuntimeException {}
+    private static final class AudiencePolicyComplete extends RuntimeException {
+        private final AnnouncementAudienceMigration.Result result;
+        private AudiencePolicyComplete(AnnouncementAudienceMigration.Result result){this.result=result;}
+    }
 
     private static java.nio.file.Path backupH2Database(String jdbcUrl, java.nio.file.Path backupDirectory) {
         var destination = H2DatabaseBackup.backup(jdbcUrl, backupDirectory);

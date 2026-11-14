@@ -19,13 +19,16 @@ public record TeamDetailResponseDto(
     public record MemberInfo(
             Long userId,
             String name,
-            TeamRole role
+            TeamRole role,
+            @io.swagger.v3.oas.annotations.media.Schema(description="팀원의 선택 캐릭터 숫자 ID(1~9). 미설정은 null",nullable=true)
+            Integer characterId
     ) {
         public static MemberInfo from(TeamMember member) {
             return new MemberInfo(
                     member.getUser().getUserId(),
                     member.getUser().getName(),
-                    member.getRole()
+                    member.getRole(),
+                    member.getUser().getCharacterId()
             );
         }
     }

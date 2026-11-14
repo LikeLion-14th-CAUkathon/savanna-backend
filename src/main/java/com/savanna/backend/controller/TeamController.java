@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.savanna.backend.dto.response.TeamListResponseDto;
 import com.savanna.backend.dto.response.TeamDetailResponseDto;
+import com.savanna.backend.dto.response.DataResponse;
 import com.savanna.backend.dto.request.TeamUpdateRequestDto;
 
 import java.util.List;
@@ -58,7 +59,7 @@ public class TeamController {
     }
 
     @GetMapping("/{teamId}")
-    public ResponseEntity<?> getTeamDetail(
+    public ResponseEntity<DataResponse<TeamDetailResponseDto>> getTeamDetail(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long teamId
     ) {
@@ -66,16 +67,12 @@ public class TeamController {
                 teamService.getTeamDetail(userId, teamId);
 
         return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "팀 상세 조회 성공",
-                        "data", result
-                )
+                new DataResponse<>(200,"팀 상세 조회 성공",result)
         );
     }
 
     @PatchMapping("/{teamId}")
-    public ResponseEntity<?> updateTeam(
+    public ResponseEntity<DataResponse<TeamDetailResponseDto>> updateTeam(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long teamId,
             @Valid @RequestBody TeamUpdateRequestDto request
@@ -84,11 +81,7 @@ public class TeamController {
                 teamService.updateTeam(userId, teamId, request);
 
         return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "팀 정보 수정 성공",
-                        "data", result
-                )
+                new DataResponse<>(200,"팀 정보 수정 성공",result)
         );
     }
 
