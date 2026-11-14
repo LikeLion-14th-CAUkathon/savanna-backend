@@ -28,5 +28,10 @@ public record TeamUpdateRequestDto(
         String presentationUrl,
 
         @Size(max = 500)
-        String stack
+        String stack,
+
+        @Size(max = 2048)
+        @Pattern(regexp="^$",message="사진 URL 직접 입력은 지원하지 않습니다. 사진 업로드 API를 사용해 주세요.")
+        @io.swagger.v3.oas.annotations.media.Schema(description="사진은 팀 생성 후 POST /api/v1/teams/{teamId}/photo로 업로드합니다. 생략/null은 유지, 빈 문자열은 삭제. URL 직접 입력 불가",deprecated=true)
+        String photoUrl
 ) {}
