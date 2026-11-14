@@ -9,6 +9,10 @@ app:
     success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:5173/login?google=success}
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   config:
     import: optional:classpath:application-secret.yml
 
@@ -31,3 +35,8 @@ spring:
   sql:
     init:
       mode: never
+
+team-photo:
+  enabled: ${TEAM_PHOTO_ENABLED:false}
+  bucket: ${TEAM_PHOTO_BUCKET:savanna-team-photos-20261114}
+  region: ${TEAM_PHOTO_REGION:ap-northeast-2}

@@ -2,6 +2,7 @@ package com.savanna.backend.domain;
 
 import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ApplicationMethod;
+import com.savanna.backend.util.RegionNormalizer;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -155,7 +156,7 @@ public class Announcement {
         this.maxMembers = maxMembers;
         this.evaluationCriteria = evaluationCriteria;
         this.enrollmentRequirement = enrollmentRequirement;
-        this.region = region;
+        this.region = RegionNormalizer.normalize(region);
         this.theme = theme;
         this.applicationMethod = applicationMethod;
         this.submissionRequirements = submissionRequirements;
@@ -165,7 +166,7 @@ public class Announcement {
         this.formNote = optionalDetail(formNote);
         this.lengthNote = optionalDetail(lengthNote);
         this.consentRequirements = optionalDetail(consentRequirements);
-        this.participationRegion = optionalDetail(participationRegion);
+        this.participationRegion = RegionNormalizer.normalize(optionalDetail(participationRegion));
         this.venueNote = optionalDetail(venueNote);
     }
 
@@ -189,7 +190,7 @@ public class Announcement {
             else { this.applicationStartsAt = start.atStartOfDay(); this.deadline = deadline; dateSource = "API_ESTIMATED"; }
         }
         if (this.enrollmentRequirement == null) this.enrollmentRequirement = target;
-        if (this.participationRegion == null) this.participationRegion = participationRegion;
+        if (getParticipationRegion() == null) this.participationRegion = RegionNormalizer.normalize(participationRegion);
         this.applicationPeriodRaw = periodRaw;
         this.sourceUrl = sourceUrl;
         this.posterUrl = posterUrl;
@@ -197,6 +198,10 @@ public class Announcement {
     }
 
     public boolean isAvailable() { return visibility && excludeReason == null && classificationIssue == null; }
+
+    // Existing stored rows are normalized for all readers without rewriting raw CSV metadata.
+    public String getRegion() { return RegionNormalizer.normalize(region); }
+    public String getParticipationRegion() { return RegionNormalizer.normalize(participationRegion); }
 
     public void exclude(String reason) {
         addPolicyExclusion(reason);

@@ -113,6 +113,18 @@ class AnnouncementDetailTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void normalizesLegacyRegionFormattingInResponseWithoutRewritingStoredSource() throws Exception {
+        var saved=save(null,LocalDateTime.now().plusDays(5));
+        long id=saved.getAnnouncementId();
+        entityManager.createNativeQuery("update announcements set region=:region,participation_region=:area where announcement_id=:id")
+                .setParameter("region","대\u3000구").setParameter("area","전\u3000국").setParameter("id",id).executeUpdate();
+        entityManager.clear();
+        mvc.perform(get("/api/v1/announcements/{id}",id)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.region").value("대구")).andExpect(jsonPath("$.participationRegion").value("전국"));
+        org.junit.jupiter.api.Assertions.assertEquals("대\u3000구",entityManager.createNativeQuery("select region from announcements where announcement_id=:id").setParameter("id",id).getSingleResult());
+    }
+
     @BeforeEach
     void setUp() {
         // Controller + actual service/repository; security filters are outside this test's scope.
