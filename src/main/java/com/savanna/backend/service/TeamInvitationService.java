@@ -35,6 +35,7 @@ public class TeamInvitationService {
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final InvitationTokenProvider invitationTokenProvider;
+    private final TeamMembershipPolicy membershipPolicy;
 
     @Transactional
     public TeamInvitationCreateResponseDto createInvitation(
@@ -204,6 +205,7 @@ public class TeamInvitationService {
             Long userId,
             String token
     ) {
+        User lockedUser = membershipPolicy.lockUser(userId);
         // 1. 초대 토큰 해시 생성
         String tokenHash = hashToken(token);
 
@@ -226,13 +228,7 @@ public class TeamInvitationService {
         }
 
         // 4. 로그인 사용자 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "사용자를 찾을 수 없습니다."
-                        )
-                );
+        User user = lockedUser;
 
         // 5. 온보딩 완료 여부 확인
         if (!user.isOnboardingCompleted()) {
@@ -244,6 +240,7 @@ public class TeamInvitationService {
 
         // 6. 초대된 팀 조회
         Team team = invitation.getTeam();
+        membershipPolicy.requireNoTeam(userId);
 
         // 7. 중복 가입 여부 확인
         boolean alreadyJoined = teamMemberRepository

@@ -9,11 +9,13 @@ public record ProposalRecipientsResponse(Long proposalId, long totalCount, long 
                                         long declinedCount, long pendingCount, List<Recipient> recipients) {
     public record Recipient(Long proposalRecipientId, Long userId, String name,
                             ProposalRecipientStatus status, LocalDateTime readAt, LocalDateTime respondedAt,
-                            long responseVersion, boolean responseUnread) {
+                            long responseVersion, boolean responseUnread,
+                            @io.swagger.v3.oas.annotations.media.Schema(description="수신자의 현재 선택 캐릭터 숫자 ID(1~9). 미설정은 null",nullable=true)
+                            Integer characterId) {
         public static Recipient from(ProposalRecipient recipient) {
             return new Recipient(recipient.getProposalRecipientId(), recipient.getUser().getUserId(),
                     recipient.getUser().getName(), recipient.getStatus(), recipient.getReadAt(), recipient.getRespondedAt(),
-                    recipient.getResponseVersion(), recipient.isResponseUnread());
+                    recipient.getResponseVersion(), recipient.isResponseUnread(),recipient.getUser().getCharacterId());
         }
     }
 

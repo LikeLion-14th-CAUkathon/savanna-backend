@@ -11,4 +11,8 @@ public interface UserRepository
     Optional<User> findByGoogleSub(String googleSub);
 
     Optional<User> findByEmail(String email);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select u from User u where u.userId = :id")
+    Optional<User> findForTeamMembership(@org.springframework.data.repository.query.Param("id") Long id);
 }

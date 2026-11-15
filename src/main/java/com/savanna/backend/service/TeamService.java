@@ -28,6 +28,7 @@ public class TeamService {
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
     private final TeamPhotoService teamPhotos;
+    private final TeamMembershipPolicy membershipPolicy;
 
     @Transactional
     public TeamCreateResponseDto createTeam(
@@ -36,13 +37,8 @@ public class TeamService {
     ) {
 
         // 1. 로그인 사용자 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "사용자를 찾을 수 없습니다."
-                        )
-                );
+        User user = membershipPolicy.lockUser(userId);
+        membershipPolicy.requireNoTeam(userId);
 
         // 2. 온보딩 완료 여부 확인
         if (!user.isOnboardingCompleted()) {

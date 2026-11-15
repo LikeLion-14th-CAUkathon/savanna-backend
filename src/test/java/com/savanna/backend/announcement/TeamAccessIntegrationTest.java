@@ -93,15 +93,14 @@ class TeamAccessIntegrationTest {
         assertTrue(access.read(auth(outsider), null).isEmpty());
     }
 
-    @Test void multipleTeamsRequireExplicitSelectionAndUnknownEnrollmentIsPreserved() {
+    @Test void onlyTeamIsSelectedAndUnknownEnrollmentIsPreserved() {
         var user = user("multi", null);
         var first = team();
         var second = team();
         join(user, first, TeamRole.LEADER);
-        join(user, second, TeamRole.MEMBER);
-        assertTrue(access.read(auth(user), null).isEmpty());
-        fails(ErrorCode.INVALID_REQUEST, () -> access.requireTeam(auth(user)));
-        assertEquals(second.getTeamId(), access.requireTeam(auth(user), second.getTeamId()).teamId());
+        assertEquals(first.getTeamId(),access.read(auth(user), null).orElseThrow().teamId());
+        assertEquals(first.getTeamId(),access.requireTeam(auth(user)).teamId());
+        fails(ErrorCode.FORBIDDEN, () -> access.requireTeam(auth(user), second.getTeamId()));
         var snapshot = access.read(auth(user), first.getTeamId()).orElseThrow();
         assertEquals(1, snapshot.memberEnrollmentStatuses().size());
         assertNull(snapshot.memberEnrollmentStatuses().get(0));
