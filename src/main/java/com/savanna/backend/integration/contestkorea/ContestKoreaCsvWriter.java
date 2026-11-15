@@ -14,17 +14,18 @@ public class ContestKoreaCsvWriter {
     private final AnnouncementRepository announcements;
     private final SourceAudit audit;
     private final com.savanna.backend.service.AnnouncementAudienceService audiences;
-    public record Result(int rows,int created,int updated,int excluded,int unmatched,int failed,int dateConflicts,List<String> issues) {}
+    public record Result(int rows,int created,int updated,int excluded,int unmatched,int failed,int dateConflicts,List<String> issues,int suppressed) {}
 
     @Transactional
     public Result apply(List<Map<String,String>> rows,String sourceLabel) {
-        int created=0,updated=0,excluded=0,unmatched=0,failed=0,conflicts=0;
+        int created=0,updated=0,excluded=0,unmatched=0,failed=0,conflicts=0,suppressed=0;
         var issues=new ArrayList<String>(); var seen=new HashSet<String>();
         var duplicates=rows.stream().collect(java.util.stream.Collectors.groupingBy(r->r.getOrDefault("api_id",""),java.util.stream.Collectors.counting()));
         int line=1;
         for(var original:rows){line++;var row=new LinkedHashMap<>(original);
             row.replaceAll((key,value)->value==null||Set.of("원문 참고","원문참고","원문 확인","공고 원문을 확인해 주세요").contains(value.strip())?"":value.strip());
             String id=row.get("api_id");
+            if(ContestKoreaRemovalRegistry.contains(id)){suppressed++;issues.add(id+":USER_REMOVED");continue;}
             var metadata=new LinkedHashMap<String,Object>();metadata.put("file",sourceLabel);metadata.put("row",line);metadata.put("values",original);
             var existing=id==null?Optional.<Announcement>empty():announcements.findBySourceProviderAndExternalId("CONTEST_KOREA",id);
             var category=ContestKoreaCategory.fromSource(row.get("category_source"));
@@ -68,7 +69,7 @@ public class ContestKoreaCsvWriter {
             if(announcement.getClassificationIssue()!=null)issues.add(id+":"+announcement.getClassificationIssue());
             if(!blank(row,"required_region"))issues.add(id+":REGION_MEANING_REQUIRES_REVIEW");
         }
-        return new Result(rows.size(),created,updated,excluded,unmatched,failed,conflicts,List.copyOf(issues));
+        return new Result(rows.size(),created,updated,excluded,unmatched,failed,conflicts,List.copyOf(issues),suppressed);
     }
     private static LocalDate date(String s){return s==null||s.isBlank()?null:LocalDate.parse(s);}
     private static Integer number(String s){if(s==null||s.isBlank())return null;int n=Integer.parseInt(s);if(n<1)throw new IllegalArgumentException();return n;}

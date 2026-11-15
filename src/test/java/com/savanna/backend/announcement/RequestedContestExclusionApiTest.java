@@ -22,20 +22,19 @@ class RequestedContestExclusionApiTest {
     @Autowired JwtTokenProvider tokens;
     @Autowired ContestKoreaWriter writer;
     @Autowired AnnouncementRepository announcements;
-    @Test void theTwoReportedContestIdsAreNotReturnedBySearchOrDetailEvenWhenVisibilityIsTrue() throws Exception {
+    @Test void theTwoPreviouslyHiddenContestsAreNowSuppressedBeforeImport() throws Exception {
         var mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         var user=users.saveAndFlush(new User("exclude-reader@example.invalid","exclude-reader"));
         String bearer="Bearer "+tokens.createAccessToken(user.getUserId());
         String[][] contests={{"202611040033","어린이 미래 상상 그림 공모전","초등학생"},{"202610170003","2026 ACEL 전국 청소년 미술 공모전","초등학생, 중학생, 고등학생"}};
         for(var contest:contests){
             var item=new ContestKoreaItem(contest[0],"미술•디자인•웹툰",contest[1],"주최",contest[2],"11.01~12.31","https://www.contestkorea.com/view?str_no="+contest[0],null,"전국");
-            writer.save(ContestKoreaCategory.DESIGN,List.of(item));
-            var saved=announcements.findBySourceProviderAndExternalId("CONTEST_KOREA",contest[0]).orElseThrow();
-            assertTrue(saved.isVisibility());assertFalse(saved.isAvailable());assertNotNull(saved.getExcludeReason());
+            var result=writer.save(ContestKoreaCategory.DESIGN,List.of(item));
+            assertEquals(List.of(contest[0]),result.suppressedIds());
+            assertTrue(announcements.findBySourceProviderAndExternalId("CONTEST_KOREA",contest[0]).isEmpty());
             mvc.perform(get("/api/v1/announcements").param("keyword",contest[1]).header("Authorization",bearer)).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
-            mvc.perform(get("/api/v1/announcements/{id}",saved.getAnnouncementId()).header("Authorization",bearer)).andExpect(status().isNotFound());
-            saved.exclude("[MANUAL_REQUEST] 사용자 지정 제외: 어린이/청소년 미술 공모전 2건");
-            writer.save(ContestKoreaCategory.DESIGN,List.of(item));assertFalse(saved.isVisibility());assertFalse(saved.isAvailable());
+            writer.save(ContestKoreaCategory.DESIGN,List.of(item));
+            assertTrue(announcements.findBySourceProviderAndExternalId("CONTEST_KOREA",contest[0]).isEmpty());
         }
     }
 }

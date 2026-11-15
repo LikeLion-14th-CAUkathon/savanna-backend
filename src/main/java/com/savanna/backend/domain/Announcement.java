@@ -275,7 +275,8 @@ public class Announcement {
         if (filled(values,"detail_status")) detailStatus=values.get("detail_status");
         if (filled(values,"team_min")) minMembers=Integer.valueOf(values.get("team_min"));
         if (filled(values,"team_max")) maxMembers=Integer.valueOf(values.get("team_max"));
-        if (filled(values,"target_raw")) enrollmentRequirement=values.get("target_raw");
+        if (filled(values,"target_text")) enrollmentRequirement=values.get("target_text");
+        else if (filled(values,"target_raw")) enrollmentRequirement=values.get("target_raw");
         if (filled(values,"exclude_reason")) exclude(values.get("exclude_reason"));
         if (posterUrl == null && filled(values,"poster_url")) posterUrl=values.get("poster_url");
         csvMetadata=metadata;
