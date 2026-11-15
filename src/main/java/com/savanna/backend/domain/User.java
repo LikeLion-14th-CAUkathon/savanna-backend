@@ -1,3 +1,4 @@
+
 package com.savanna.backend.domain;
 
 import com.savanna.backend.enums.EnrollmentStatus;
@@ -29,7 +30,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     private EnrollmentStatus enrollmentStatus;
 
-    // 프런트 캐릭터 apiId(1~9). 미설정 사용자는 null이며 임의로 배정하지 않습니다.
+    // 사용자가 선택한 동물 캐릭터 (1~9)
+    // 미설정 사용자는 null
     @Column(name = "character_id")
     private Integer characterId;
 
@@ -50,7 +52,7 @@ public class User {
         this.name = googleName;
     }
 
-    // 프로필 수정
+    // 기존 프로필 수정 메서드 유지
     public void updateProfile(
             String name,
             EnrollmentStatus enrollmentStatus
@@ -66,12 +68,6 @@ public class User {
 
     public void completeOnboarding() {
         this.onboardingCompleted = true;
-    }
-
-    public void updateCharacter(Integer characterId) {
-        if(characterId==null)throw new IllegalArgumentException("캐릭터를 선택해 주세요.");
-        if(characterId<1||characterId>9)throw new IllegalArgumentException("캐릭터 ID는 1~9여야 합니다.");
-        this.characterId=characterId;
     }
 
     public void updateProfile(
@@ -92,5 +88,12 @@ public class User {
         }
 
         this.onboardingCompleted = true;
+    }
+
+    // 캐릭터 수정
+    public void updateCharacter(Integer characterId) {
+        if (characterId != null) {
+            this.characterId = characterId;
+        }
     }
 }
