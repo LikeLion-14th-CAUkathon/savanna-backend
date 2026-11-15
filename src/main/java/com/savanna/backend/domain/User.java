@@ -31,6 +31,8 @@ public class User {
     private EnrollmentStatus enrollmentStatus;
 
     // 사용자가 선택한 동물 캐릭터 (1~9)
+    // 미설정 사용자는 null
+    @Column(name = "character_id")
     private Integer characterId;
 
     @Column(nullable = false)

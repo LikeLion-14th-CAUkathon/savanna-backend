@@ -26,6 +26,7 @@ import java.time.ZoneId;
 public class AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
+    private final AnnouncementAudienceService audiences;
 
     public AnnouncementDetailResponse getAnnouncement(Long announcementId) {
         if (announcementId == null || announcementId <= 0) {
@@ -103,10 +104,16 @@ public class AnnouncementService {
                 .submissionRequirements(request.submissionRequirements())
                 .sourceUrl(request.sourceUrl())
                 .applyUrl(request.applyUrl())
+                .applicationInstructions(request.applicationInstructions())
+                .formNote(request.formNote())
+                .lengthNote(request.lengthNote())
+                .consentRequirements(request.consentRequirements())
+                .participationRegion(request.participationRegion())
+                .venueNote(request.venueNote())
                 .build();
 
-        return AnnouncementResponse.from(
-                announcementRepository.save(announcement)
-        );
+        announcementRepository.save(announcement);
+        audiences.apply(announcement,"MANUAL");
+        return AnnouncementResponse.from(announcement);
     }
 }

@@ -15,7 +15,10 @@ public record ReceivedProposalResponse(
         String message,
         ProposalRecipientStatus status,
         LocalDateTime createdAt,
-        LocalDateTime readAt
+        LocalDateTime readAt,
+        Long senderId,
+        @io.swagger.v3.oas.annotations.media.Schema(description="발신자의 현재 선택 캐릭터 숫자 ID(1~9). 미설정은 null",nullable=true)
+        Integer senderCharacterId
 ) {
 
     public static ReceivedProposalResponse from(
@@ -35,7 +38,9 @@ public record ReceivedProposalResponse(
                 proposal.getMessage(),
                 recipient.getStatus(),
                 proposal.getCreatedAt(),
-                recipient.getReadAt()
+                recipient.getReadAt(),
+                proposal.getSender().getUserId(),
+                proposal.getSender().getCharacterId()
         );
     }
 }

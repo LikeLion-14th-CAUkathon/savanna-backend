@@ -33,6 +33,8 @@ class SwaggerJwtSecurityTest {
         mvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.schemas.AnnouncementDetailResponse.properties.consentRequirements").exists())
+                .andExpect(jsonPath("$.components.schemas.AnnouncementCreateRequest.properties.consentRequirements").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/announcements'].get.security[0].bearerAuth").isArray())
                 .andExpect(jsonPath("$.paths['/api/v1/auth/refresh'].post.security").doesNotExist());
     }

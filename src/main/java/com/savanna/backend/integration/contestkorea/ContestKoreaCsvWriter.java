@@ -13,6 +13,7 @@ import java.util.*;
 public class ContestKoreaCsvWriter {
     private final AnnouncementRepository announcements;
     private final SourceAudit audit;
+    private final com.savanna.backend.service.AnnouncementAudienceService audiences;
     public record Result(int rows,int created,int updated,int excluded,int unmatched,int failed,int dateConflicts,List<String> issues) {}
 
     @Transactional
@@ -58,9 +59,12 @@ public class ContestKoreaCsvWriter {
             announcement.recordCsvCategory(category.get().code());
             announcement.supplement(row,start,end,JsonMapper.builder().build().writeValueAsString(metadata));
             announcements.save(announcement);
+            var audience=audiences.apply(announcement,"CSV");
+            if(audience.action()!=com.savanna.backend.service.AnnouncementAudiencePolicy.Action.KEEP)
+                issues.add(id+":AUDIENCE_"+audience.action()+":"+audience.reason());
             audit.record(announcement,id,"CSV","SUPPLEMENT",metadata);
             if(existing.isPresent())updated++;else created++;
-            if(!blank(row,"exclude_reason"))excluded++;
+            if(!blank(row,"exclude_reason")||audience.action()==com.savanna.backend.service.AnnouncementAudiencePolicy.Action.EXCLUDE)excluded++;
             if(announcement.getClassificationIssue()!=null)issues.add(id+":"+announcement.getClassificationIssue());
             if(!blank(row,"required_region"))issues.add(id+":REGION_MEANING_REQUIRES_REVIEW");
         }

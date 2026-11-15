@@ -32,6 +32,7 @@ public class SecurityConfig {
 
     private final CustomOidcUserService customOidcUserService;
     private final OAuth2LoginSuccessHandler successHandler;
+    private final com.savanna.backend.handler.OAuth2LoginFailureHandler failureHandler;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final AuthCookieFactory authCookies;
@@ -175,6 +176,7 @@ public class SecurityConfig {
                                 .oidcUserService(customOidcUserService)
                         )
                         .successHandler(successHandler)
+                        .failureHandler(failureHandler)
 
                 );
 

@@ -35,6 +35,12 @@ public class Team {
     @Column(length = 500)
     private String stack;
 
+    @Column(name="photo_url",length=2048)
+    private String photoUrl;
+
+    @Column(name="photo_object_key",length=512)
+    private String photoObjectKey;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -110,5 +116,15 @@ public class Team {
         }
 
         return value.trim();
+    }
+
+    public void updatePhotoObjectKey(String key) {
+        this.photoObjectKey=key;
+        this.photoUrl=null;
+    }
+
+    public void updatePhotoUrl(String photoUrl) {
+        this.photoUrl=normalizeOptional(photoUrl);
+        this.photoObjectKey=null;
     }
 }

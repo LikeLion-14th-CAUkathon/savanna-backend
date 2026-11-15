@@ -13,9 +13,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "team_member",
-        uniqueConstraints = @UniqueConstraint(
-                columnNames = {"user_id", "team_id"}
-        )
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "team_id"}),
+                @UniqueConstraint(name="uk_team_member_user",columnNames="user_id")
+        }
 )
 public class TeamMember {
 

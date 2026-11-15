@@ -61,6 +61,7 @@ public class UserService {
                 request.universityName(),
                 request.enrollmentStatus()
         );
+        user.updateCharacter(request.characterId());
 
         // 2. 동물 캐릭터 수정
         // 요청에서 생략하면 기존 캐릭터 유지
