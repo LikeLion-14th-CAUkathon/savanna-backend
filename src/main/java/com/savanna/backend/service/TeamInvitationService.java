@@ -36,6 +36,7 @@ public class TeamInvitationService {
     private final UserRepository userRepository;
     private final InvitationTokenProvider invitationTokenProvider;
     private final TeamMembershipPolicy membershipPolicy;
+    private final com.savanna.backend.invitation.InvitationUrlFactory invitationUrls;
 
     @Transactional
     public TeamInvitationCreateResponseDto createInvitation(
@@ -56,7 +57,8 @@ public class TeamInvitationService {
 
         // 3. 기존 초대 링크 최신순 조회
         List<TeamInvitation> invitations = invitationRepository
-                .findAllByTeam_TeamIdOrderByCreatedAtDesc(teamId);
+                .findAllByTeam_TeamIdOrderByCreatedAtDesc(teamId).stream()
+                .sorted(Comparator.comparing(TeamInvitation::getCreatedAt).thenComparing(TeamInvitation::getInvitationId).reversed()).toList();
 
         // 4. 기존 활성 영구 링크 확인
         TeamInvitation activePermanentInvitation = null;
@@ -85,23 +87,13 @@ public class TeamInvitationService {
                 }
             }
 
-            String existingToken = invitationTokenProvider.createToken(
-                    activePermanentInvitation.getTokenSeed()
-            );
-
-            if (!activePermanentInvitation.getTokenHash().equals(
-                    invitationTokenProvider.hashToken(existingToken)
-            )) {
-                throw new IllegalStateException(
-                        "초대 링크 검증에 실패했습니다."
-                );
-            }
+            String existingToken = recoverToken(activePermanentInvitation);
 
             return new TeamInvitationCreateResponseDto(
                     activePermanentInvitation.getInvitationId(),
                     teamId,
                     existingToken,
-                    null
+                    null,invitationUrls.create(existingToken),activePermanentInvitation.getStatus()
             );
         }
 
@@ -139,7 +131,7 @@ public class TeamInvitationService {
                 invitation.getInvitationId(),
                 teamId,
                 token,
-                null
+                null,invitationUrls.create(token),invitation.getStatus()
         );
     }
 
@@ -313,8 +305,31 @@ public class TeamInvitationService {
                                 TeamInvitation::getCreatedAt
                         ).reversed()
                 )
-                .map(TeamInvitationListResponseDto::from)
+                .map(invitation -> {
+                    String token=invitation.isActive() && invitation.getTokenSeed()!=null ? recoverToken(invitation) : null;
+                    return TeamInvitationListResponseDto.from(invitation,token,token==null?null:invitationUrls.create(token));
+                })
                 .toList();
+    }
+
+    @Transactional(readOnly=true)
+    public TeamInvitationCreateResponseDto currentInvitation(Long userId,Long teamId) {
+        if(!teamRepository.existsById(teamId))throw new ResponseStatusException(HttpStatus.NOT_FOUND,"팀을 찾을 수 없습니다.");
+        if(!teamMemberRepository.existsByUser_UserIdAndTeam_TeamId(userId,teamId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"해당 팀에 접근할 권한이 없습니다.");
+        var current=invitationRepository.findAllByTeam_TeamIdOrderByCreatedAtDesc(teamId).stream()
+                .filter(i -> i.isActive() && i.getTokenSeed()!=null)
+                .max(Comparator.comparing(TeamInvitation::getCreatedAt).thenComparing(TeamInvitation::getInvitationId))
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"현재 영구 초대 링크가 없습니다. 팀장이 생성해야 합니다."));
+        String token=recoverToken(current);
+        return new TeamInvitationCreateResponseDto(current.getInvitationId(),teamId,token,null,invitationUrls.create(token),current.getStatus());
+    }
+
+    private String recoverToken(TeamInvitation invitation) {
+        String token=invitationTokenProvider.createToken(invitation.getTokenSeed());
+        if(!invitation.getTokenHash().equals(invitationTokenProvider.hashToken(token)))
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"초대 링크를 복원할 수 없습니다. 서버 설정을 확인해 주세요.");
+        return token;
     }
 
     @Transactional

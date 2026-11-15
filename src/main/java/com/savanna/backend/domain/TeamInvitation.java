@@ -91,4 +91,9 @@ public class TeamInvitation {
             this.revokedAt = Instant.now();
         }
     }
+
+    public com.savanna.backend.enums.TeamInvitationStatus getStatus() {
+        if(revokedAt!=null)return com.savanna.backend.enums.TeamInvitationStatus.REVOKED;
+        return isActive()?com.savanna.backend.enums.TeamInvitationStatus.ACTIVE:com.savanna.backend.enums.TeamInvitationStatus.EXPIRED;
+    }
 }
