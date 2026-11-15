@@ -18,6 +18,9 @@ repositories {
 }
 
 dependencies {
+	implementation platform('software.amazon.awssdk:bom:2.57.3')
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:url-connection-client'
 	implementation 'org.springframework.boot:spring-boot-h2console'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -55,6 +58,9 @@ tasks.register('importContestKorea', JavaExec) {
 	args "--contest-korea.import.category=${providers.gradleProperty('contestKoreaCategory').getOrElse('IDEA')}"
 	args "--contest-korea.import.backup-only=${providers.gradleProperty('contestKoreaBackupOnly').getOrElse('false')}"
 	args "--contest-korea.import.migrate-fields=${providers.gradleProperty('contestKoreaMigrate').getOrElse('false')}"
+	if (providers.gradleProperty('contestKoreaAudience').isPresent()) {
+		args "--contest-korea.import.audience-only=${providers.gradleProperty('contestKoreaAudience').get()}"
+	}
 	if (providers.gradleProperty('contestKoreaCsv').isPresent()) {
 		args "--contest-korea.import.csv=${providers.gradleProperty('contestKoreaCsv').get()}"
 	}

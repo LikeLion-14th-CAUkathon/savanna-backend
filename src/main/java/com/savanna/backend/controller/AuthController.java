@@ -56,7 +56,7 @@ public class AuthController {
         );
 
         // 새 Access Token 반환
-        return ResponseEntity.ok(
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
                 new ApiResponse(
                         200,
                         "토큰 재발급 성공",
@@ -70,7 +70,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(
+    public ResponseEntity<com.savanna.backend.dto.response.StatusMessageResponse> logout(
             @CookieValue(
                     value = "refreshToken",
                     required = false
@@ -97,23 +97,21 @@ public class AuthController {
                 cookie.toString()
         );
 
-        return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "로그아웃 성공"
-                )
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
+                new com.savanna.backend.dto.response.StatusMessageResponse(200,"로그아웃 성공")
         );
     }
 
     @GetMapping("/csrf")
-    public ResponseEntity<?> csrf(
+    public ResponseEntity<CsrfResponse> csrf(
             org.springframework.security.web.csrf.CsrfToken token
     ) {
-        return ResponseEntity.ok(
-                java.util.Map.of("csrfToken", token.getToken())
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
+                new CsrfResponse(token.getToken())
         );
     }
 
+    public record CsrfResponse(String csrfToken) {}
     public record ApiResponse(
             int status,
             String message,

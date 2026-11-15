@@ -14,18 +14,23 @@ public record TeamDetailResponseDto(
         String githubUrl,
         String presentationUrl,
         String stack,
-        List<MemberInfo> members
+        List<MemberInfo> members,
+        @io.swagger.v3.oas.annotations.media.Schema(description="팀 프로필 사진 URL. 미설정은 null",nullable=true)
+        String photoUrl
 ) {
     public record MemberInfo(
             Long userId,
             String name,
-            TeamRole role
+            TeamRole role,
+            @io.swagger.v3.oas.annotations.media.Schema(description="팀원의 선택 캐릭터 숫자 ID(1~9). 미설정은 null",nullable=true)
+            Integer characterId
     ) {
         public static MemberInfo from(TeamMember member) {
             return new MemberInfo(
                     member.getUser().getUserId(),
                     member.getUser().getName(),
-                    member.getRole()
+                    member.getRole(),
+                    member.getUser().getCharacterId()
             );
         }
     }
@@ -34,6 +39,9 @@ public record TeamDetailResponseDto(
             Team team,
             List<TeamMember> members
     ) {
+        return from(team, members, team.getPhotoUrl());
+    }
+    public static TeamDetailResponseDto from(Team team, List<TeamMember> members, String photoUrl) {
         return new TeamDetailResponseDto(
                 team.getTeamId(),
                 team.getName(),
@@ -44,7 +52,8 @@ public record TeamDetailResponseDto(
                 team.getStack(),
                 members.stream()
                         .map(MemberInfo::from)
-                        .toList()
+                        .toList(),
+                photoUrl
         );
     }
 }

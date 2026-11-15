@@ -19,6 +19,7 @@ public class ProposalRecipientService {
     private final UserRepository users;
     private final TeamRepository teams;
     private final TeamMemberRepository members;
+    private final TeamMembershipPolicy membershipPolicy;
 
     private void requireUser(Long userId) {
         if (userId == null || userId <= 0 || !users.existsById(userId)) {
@@ -46,12 +47,16 @@ public class ProposalRecipientService {
     @Transactional
     public ProposalRecipientResponse respond(Long userId, Long recipientId, ProposalRecipientStatus status) {
         requireUser(userId);
+        membershipPolicy.lockUser(userId);
         if (recipientId == null || recipientId <= 0 || status == null || status == ProposalRecipientStatus.PENDING) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         var recipient = recipients.findForResponse(recipientId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         if (!recipient.getUser().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
+        if(status==ProposalRecipientStatus.JOINED) {
+            membershipPolicy.requireOnlyTeam(userId,recipient.getProposal().getExpedition().getTeamId());
+        }
         // 응답 변경·읽음·버전 갱신을 같은 수신 기록 잠금 아래 처리합니다.
         boolean changed = recipient.respond(status);
         if (changed && status == ProposalRecipientStatus.JOINED) {

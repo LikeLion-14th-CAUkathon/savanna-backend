@@ -2,6 +2,7 @@ package com.savanna.backend.domain;
 
 import com.savanna.backend.enums.AnnouncementField;
 import com.savanna.backend.enums.ApplicationMethod;
+import com.savanna.backend.util.RegionNormalizer;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -103,6 +104,9 @@ public class Announcement {
     @Column(columnDefinition = "TEXT") private String applicationInstructions;
     @Column(columnDefinition = "TEXT") private String formNote;
     @Column(columnDefinition = "TEXT") private String lengthNote;
+    // 공고가 요구하는 동의서 안내문. 사용자 동의 여부가 아니며 미확인은 null입니다.
+    @Column(name = "consent_requirements", columnDefinition = "TEXT")
+    private String consentRequirements;
     private String teamType;
     private String allowedStatusRaw;
     private String csvRequiredRegionRaw;
@@ -135,7 +139,13 @@ public class Announcement {
             ApplicationMethod applicationMethod,
             String submissionRequirements,
             String sourceUrl,
-            String applyUrl
+            String applyUrl,
+            String applicationInstructions,
+            String formNote,
+            String lengthNote,
+            String consentRequirements,
+            String participationRegion,
+            String venueNote
     ) {
         this.title = title;
         this.applicationStartsAt = applicationStartsAt;
@@ -146,12 +156,18 @@ public class Announcement {
         this.maxMembers = maxMembers;
         this.evaluationCriteria = evaluationCriteria;
         this.enrollmentRequirement = enrollmentRequirement;
-        this.region = region;
+        this.region = RegionNormalizer.normalize(region);
         this.theme = theme;
         this.applicationMethod = applicationMethod;
         this.submissionRequirements = submissionRequirements;
         this.sourceUrl = sourceUrl;
         this.applyUrl = applyUrl;
+        this.applicationInstructions = optionalDetail(applicationInstructions);
+        this.formNote = optionalDetail(formNote);
+        this.lengthNote = optionalDetail(lengthNote);
+        this.consentRequirements = optionalDetail(consentRequirements);
+        this.participationRegion = RegionNormalizer.normalize(optionalDetail(participationRegion));
+        this.venueNote = optionalDetail(venueNote);
     }
 
     public void changeVisibility(boolean visibility) {
@@ -174,7 +190,7 @@ public class Announcement {
             else { this.applicationStartsAt = start.atStartOfDay(); this.deadline = deadline; dateSource = "API_ESTIMATED"; }
         }
         if (this.enrollmentRequirement == null) this.enrollmentRequirement = target;
-        if (this.participationRegion == null) this.participationRegion = participationRegion;
+        if (getParticipationRegion() == null) this.participationRegion = RegionNormalizer.normalize(participationRegion);
         this.applicationPeriodRaw = periodRaw;
         this.sourceUrl = sourceUrl;
         this.posterUrl = posterUrl;
@@ -182,6 +198,31 @@ public class Announcement {
     }
 
     public boolean isAvailable() { return visibility && excludeReason == null && classificationIssue == null; }
+
+    // Existing stored rows are normalized for all readers without rewriting raw CSV metadata.
+    public String getRegion() { return RegionNormalizer.normalize(region); }
+    public String getParticipationRegion() { return RegionNormalizer.normalize(participationRegion); }
+
+    public void exclude(String reason) {
+        addPolicyExclusion(reason);
+        visibility=false;
+    }
+
+    /** Keep manual visibility intact so this specific policy can be reassessed without unhiding manual exclusions. */
+    public boolean addPolicyExclusion(String reason) {
+        if(reason==null||reason.isBlank())throw new IllegalArgumentException("제외 사유가 필요합니다.");
+        if(excludeReason==null||excludeReason.isBlank()){excludeReason=reason;return true;}
+        if(java.util.Arrays.asList(excludeReason.split("\\n")).contains(reason))return false;
+        excludeReason+="\n"+reason;return true;
+    }
+
+    public boolean removePolicyExclusion(String reason) {
+        if(excludeReason==null)return false;
+        var remaining=java.util.Arrays.stream(excludeReason.split("\\n")).filter(value->!value.equals(reason)).toList();
+        String next=remaining.isEmpty()?null:String.join("\n",remaining);
+        if(java.util.Objects.equals(next,excludeReason))return false;
+        excludeReason=next;return true;
+    }
 
     public void initializeFromCsv(String id, String title, String host, String category, String url, String poster) {
         sourceProvider="CONTEST_KOREA"; externalId=id; this.title=title; this.host=host;
@@ -201,7 +242,7 @@ public class Announcement {
     }
     public void flagCsvCategory(String raw, String reason, String metadata) {
         classificationIssue="UNSUPPORTED_CSV_CATEGORY"; field=null; csvMetadata=metadata;
-        if(reason!=null&&!reason.isBlank()){excludeReason=reason;visibility=false;}
+        if(reason!=null&&!reason.isBlank())exclude(reason);
     }
     public void flagUnsupportedApiCategory() {
         if (!"UNSUPPORTED_CSV_CATEGORY".equals(classificationIssue)) classificationIssue="UNSUPPORTED_API_CATEGORY";
@@ -225,6 +266,8 @@ public class Announcement {
         if (filled(values,"how_to_apply")) applicationInstructions=values.get("how_to_apply");
         if (filled(values,"form_note")) formNote=values.get("form_note");
         if (filled(values,"length_note")) lengthNote=values.get("length_note");
+        String consent=optionalDetail(values.get("consent_requirements"));
+        if(consent!=null)consentRequirements=consent;
         if (filled(values,"team_type")) teamType=values.get("team_type");
         if (filled(values,"allowed_status")) allowedStatusRaw=values.get("allowed_status");
         if (filled(values,"required_region")) csvRequiredRegionRaw=values.get("required_region");
@@ -233,11 +276,17 @@ public class Announcement {
         if (filled(values,"team_min")) minMembers=Integer.valueOf(values.get("team_min"));
         if (filled(values,"team_max")) maxMembers=Integer.valueOf(values.get("team_max"));
         if (filled(values,"target_raw")) enrollmentRequirement=values.get("target_raw");
-        if (filled(values,"exclude_reason")) { excludeReason=values.get("exclude_reason"); visibility=false; }
+        if (filled(values,"exclude_reason")) exclude(values.get("exclude_reason"));
         if (posterUrl == null && filled(values,"poster_url")) posterUrl=values.get("poster_url");
         csvMetadata=metadata;
     }
     private static boolean filled(java.util.Map<String,String> values, String key) { return values.get(key)!=null && !values.get(key).isBlank(); }
+
+    private static String optionalDetail(String value) {
+        if(value==null||value.isBlank())return null;
+        String cleaned=value.strip();
+        return java.util.Set.of("원문 참고","원문참고","원문 확인","공고 원문을 확인해 주세요").contains(cleaned)?null:cleaned;
+    }
 
     @PrePersist
     private void onCreate() {

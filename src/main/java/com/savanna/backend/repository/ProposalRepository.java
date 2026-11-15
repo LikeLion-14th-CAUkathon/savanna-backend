@@ -8,6 +8,6 @@ public interface ProposalRepository
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "sender")
     java.util.List<Proposal> findAllByExpedition_ExpeditionIdOrderByCreatedAtDescProposalIdDesc(Long expeditionId);
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"expedition", "expedition.announcement"})
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"expedition", "expedition.announcement", "sender"})
     java.util.List<Proposal> findAllBySender_UserIdOrderByCreatedAtDescProposalIdDesc(Long userId);
 }

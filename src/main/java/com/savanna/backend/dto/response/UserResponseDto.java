@@ -1,8 +1,8 @@
-
 package com.savanna.backend.dto.response;
 
 import com.savanna.backend.domain.User;
 import com.savanna.backend.enums.EnrollmentStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
@@ -13,8 +13,13 @@ public record UserResponseDto(
         String universityName,
         EnrollmentStatus enrollmentStatus,
         List<String> regions,
-        Integer characterId,
-        boolean onboardingCompleted
+        boolean onboardingCompleted,
+
+        @Schema(
+                description = "선택 캐릭터 숫자 ID(1~9). 미설정은 null",
+                nullable = true
+        )
+        Integer characterId
 ) {
 
     public static UserResponseDto from(
@@ -28,8 +33,8 @@ public record UserResponseDto(
                 user.getUniversityName(),
                 user.getEnrollmentStatus(),
                 regions,
-                user.getCharacterId(),
-                user.isOnboardingCompleted()
+                user.isOnboardingCompleted(),
+                user.getCharacterId()
         );
     }
 }

@@ -27,6 +27,8 @@ public class TeamService {
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
+    private final TeamPhotoService teamPhotos;
+    private final TeamMembershipPolicy membershipPolicy;
 
     @Transactional
     public TeamCreateResponseDto createTeam(
@@ -35,13 +37,8 @@ public class TeamService {
     ) {
 
         // 1. 로그인 사용자 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "사용자를 찾을 수 없습니다."
-                        )
-                );
+        User user = membershipPolicy.lockUser(userId);
+        membershipPolicy.requireNoTeam(userId);
 
         // 2. 온보딩 완료 여부 확인
         if (!user.isOnboardingCompleted()) {
@@ -62,6 +59,7 @@ public class TeamService {
         );
 
 
+        teamPhotos.applyLegacyInput(team, request.photoUrl());
         teamRepository.save(team);
 
         // 4. 생성자를 LEADER로 등록
@@ -86,7 +84,7 @@ public class TeamService {
         return teamMemberRepository
                 .findAllByUser_UserId(userId)
                 .stream()
-                .map(TeamListResponseDto::from)
+                .map(member -> TeamListResponseDto.from(member, teamPhotos.url(member.getTeam())))
                 .toList();
     }
 
@@ -123,7 +121,7 @@ public class TeamService {
                 .findAllByTeam_TeamId(teamId);
 
         // 4. 상세 정보 반환
-        return TeamDetailResponseDto.from(team, members);
+        return TeamDetailResponseDto.from(team, members, teamPhotos.url(team));
     }
 
     @Transactional
@@ -133,7 +131,7 @@ public class TeamService {
             TeamUpdateRequestDto request
     ) {
         // 1. 팀 조회
-        Team team = teamRepository.findById(teamId)
+        Team team = teamRepository.findByIdForUpdate(teamId)
                 .orElseThrow(() ->
                         new ResponseStatusException(
                                 HttpStatus.NOT_FOUND,
@@ -168,6 +166,7 @@ public class TeamService {
                     request.presentationUrl(),
                     request.stack()
             );
+            if(request.photoUrl()!=null)teamPhotos.applyLegacyInput(team, request.photoUrl());
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -180,7 +179,7 @@ public class TeamService {
                 .findAllByTeam_TeamId(teamId);
 
         // 5. 수정 결과 반환
-        return TeamDetailResponseDto.from(team, members);
+        return TeamDetailResponseDto.from(team, members, teamPhotos.url(team));
     }
 
     private String normalizeOptional(String value) {

@@ -191,11 +191,12 @@ class SentProposalApiTest {
         // 팀·공고 중복 제약을 유지하면서 다른 팀의 빈 원정을 만듭니다.
         var anotherTeam = new Team("다른 팀", "프로젝트", "소개", null, null, null);
         em.persist(anotherTeam);
-        em.persist(new TeamMember(other, anotherTeam, TeamRole.MEMBER));
+        var emptyTeamMember=user("empty-team-member");
+        em.persist(new TeamMember(emptyTeamMember, anotherTeam, TeamRole.MEMBER));
         var empty = new Expedition(anotherTeam.getTeamId(), proposal.getExpedition().getAnnouncement());
         em.persist(empty);
         em.flush();
-        mvc.perform(get(expeditionPath(empty)).header("Authorization", bearer(other)))
+        mvc.perform(get(expeditionPath(empty)).header("Authorization", bearer(emptyTeamMember)))
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
     }
 

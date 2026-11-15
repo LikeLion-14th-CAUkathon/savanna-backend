@@ -45,7 +45,28 @@ public record AnnouncementCreateRequest(
         String sourceUrl,
 
         @Size(max = 2000)
-        String applyUrl
+        String applyUrl,
+
+        @Size(max = 10000)
+        @io.swagger.v3.oas.annotations.media.Schema(description = "지원 방법의 구체적인 안내 문장. 미확인은 null")
+        String applicationInstructions,
+
+        @Size(max = 10000)
+        @io.swagger.v3.oas.annotations.media.Schema(description = "제출 양식 안내. 미확인은 null")
+        String formNote,
+
+        @Size(max = 10000)
+        String lengthNote,
+
+        @Size(max = 10000)
+        @io.swagger.v3.oas.annotations.media.Schema(description = "공고가 요구하는 동의서 종류·서명·제출 안내. 사용자 동의 여부가 아니며 미확인은 null")
+        String consentRequirements,
+
+        @Size(max = 255)
+        String participationRegion,
+
+        @Size(max = 10000)
+        String venueNote
 ) {
     @AssertTrue(message = "접수 마감일은 접수 시작일보다 빠를 수 없습니다.")
     public boolean isApplicationPeriodValid() {

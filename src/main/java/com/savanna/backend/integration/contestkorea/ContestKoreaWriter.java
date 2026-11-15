@@ -13,6 +13,7 @@ import java.util.List;
 public class ContestKoreaWriter {
     private final AnnouncementRepository announcements;
     private final SourceAudit audit;
+    private final com.savanna.backend.service.AnnouncementAudienceService audiences;
     public record ImportResult(int created, int updated, int excluded, List<String> skippedIds, List<String> issues) {}
 
     @Transactional
@@ -46,6 +47,9 @@ public class ContestKoreaWriter {
             announcement.recordCategory(category.code(), primary.map(ContestKoreaCategory::code).orElse(null));
             if(primary.isEmpty() && clean(item.category())!=null) announcement.flagUnsupportedApiCategory();
             announcements.save(announcement);
+            var audience=audiences.apply(announcement,"API");
+            if(audience.action()!=com.savanna.backend.service.AnnouncementAudiencePolicy.Action.KEEP)
+                issues.add(item.id()+":AUDIENCE_"+audience.action()+":"+audience.reason());
             if (announcement.getExternalCategoryCodes().contains("|")) {
                 issues.add(item.id() + ":MULTIPLE_CATEGORIES:" + announcement.getExternalCategoryCodes());
                 if (!announcement.getExternalCategoryCodes().equals(oldCodes)) audit.record(announcement, item.id(), "API", "MULTIPLE_CATEGORIES", announcement.getExternalCategoryCodes());
