@@ -56,7 +56,7 @@ public class AuthController {
         );
 
         // 새 Access Token 반환
-        return ResponseEntity.ok(
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
                 new ApiResponse(
                         200,
                         "토큰 재발급 성공",
@@ -97,7 +97,7 @@ public class AuthController {
                 cookie.toString()
         );
 
-        return ResponseEntity.ok(
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
                 new com.savanna.backend.dto.response.StatusMessageResponse(200,"로그아웃 성공")
         );
     }
@@ -106,7 +106,7 @@ public class AuthController {
     public ResponseEntity<CsrfResponse> csrf(
             org.springframework.security.web.csrf.CsrfToken token
     ) {
-        return ResponseEntity.ok(
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
                 new CsrfResponse(token.getToken())
         );
     }

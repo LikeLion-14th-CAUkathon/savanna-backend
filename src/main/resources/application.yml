@@ -9,6 +9,7 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
   oauth2:
     success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:5173/login?google=success}
+    failure-redirect-url: ${OAUTH2_FAILURE_REDIRECT_URL:http://localhost:5173/login?google=fail}
 
 spring:
   servlet:
