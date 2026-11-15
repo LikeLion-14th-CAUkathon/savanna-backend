@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import com.savanna.backend.dto.response.TeamInvitationPreviewResponseDto;
 import com.savanna.backend.dto.response.TeamInvitationAcceptResponseDto;
 
-import java.util.Map;
+
 
 @RestController
 @RequiredArgsConstructor
@@ -19,7 +19,8 @@ public class TeamInvitationController {
     private final TeamInvitationService invitationService;
 
     @PostMapping("/api/v1/teams/{teamId}/invitations")
-    public ResponseEntity<?> createInvitation(
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResponseEntity<com.savanna.backend.dto.response.DataResponse<TeamInvitationCreateResponseDto>> createInvitation(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long teamId
     ) {
@@ -28,31 +29,23 @@ public class TeamInvitationController {
                 invitationService.createInvitation(userId, teamId);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of(
-                        "status", 201,
-                        "message", "초대 링크 생성 성공",
-                        "data", result
-                ));
+                .body(new com.savanna.backend.dto.response.DataResponse<>(201,"초대 링크 생성 성공",result));
     }
 
     @GetMapping("/api/v1/invitations/{token}")
-    public ResponseEntity<?> previewInvitation(
+    public ResponseEntity<com.savanna.backend.dto.response.DataResponse<TeamInvitationPreviewResponseDto>> previewInvitation(
             @PathVariable String token
     ) {
         TeamInvitationPreviewResponseDto result =
                 invitationService.previewInvitation(token);
 
         return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "초대 링크 조회 성공",
-                        "data", result
-                )
+                new com.savanna.backend.dto.response.DataResponse<>(200,"초대 링크 조회 성공",result)
         );
     }
 
     @PostMapping("/api/v1/invitations/{token}/accept")
-    public ResponseEntity<?> acceptInvitation(
+    public ResponseEntity<com.savanna.backend.dto.response.DataResponse<TeamInvitationAcceptResponseDto>> acceptInvitation(
             @AuthenticationPrincipal Long userId,
             @PathVariable String token
     ) {
@@ -60,16 +53,12 @@ public class TeamInvitationController {
                 invitationService.acceptInvitation(userId, token);
 
         return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "팀 합류 성공",
-                        "data", result
-                )
+                new com.savanna.backend.dto.response.DataResponse<>(200,"팀 합류 성공",result)
         );
     }
 
     @GetMapping("/api/v1/teams/{teamId}/invitations")
-    public ResponseEntity<?> getInvitations(
+    public ResponseEntity<com.savanna.backend.dto.response.DataResponse<java.util.List<com.savanna.backend.dto.response.TeamInvitationListResponseDto>>> getInvitations(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long teamId
     ) {
@@ -79,18 +68,14 @@ public class TeamInvitationController {
         );
 
         return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "초대 목록 조회 성공",
-                        "data", result
-                )
+                new com.savanna.backend.dto.response.DataResponse<>(200,"초대 목록 조회 성공",result)
         );
     }
 
     @DeleteMapping(
             "/api/v1/teams/{teamId}/invitations/{invitationId}"
     )
-    public ResponseEntity<?> revokeInvitation(
+    public ResponseEntity<com.savanna.backend.dto.response.StatusMessageResponse> revokeInvitation(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long teamId,
             @PathVariable Long invitationId
@@ -102,10 +87,7 @@ public class TeamInvitationController {
         );
 
         return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "초대 링크 폐기 성공"
-                )
+                new com.savanna.backend.dto.response.StatusMessageResponse(200,"초대 링크 폐기 성공")
         );
     }
 }

@@ -45,6 +45,7 @@ public class TeamController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<DataResponse<TeamCreateResponseDto>> createTeam(
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody TeamCreateRequestDto request

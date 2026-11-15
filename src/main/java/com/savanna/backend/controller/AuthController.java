@@ -70,7 +70,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(
+    public ResponseEntity<com.savanna.backend.dto.response.StatusMessageResponse> logout(
             @CookieValue(
                     value = "refreshToken",
                     required = false
@@ -98,22 +98,20 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(
-                Map.of(
-                        "status", 200,
-                        "message", "로그아웃 성공"
-                )
+                new com.savanna.backend.dto.response.StatusMessageResponse(200,"로그아웃 성공")
         );
     }
 
     @GetMapping("/csrf")
-    public ResponseEntity<?> csrf(
+    public ResponseEntity<CsrfResponse> csrf(
             org.springframework.security.web.csrf.CsrfToken token
     ) {
         return ResponseEntity.ok(
-                java.util.Map.of("csrfToken", token.getToken())
+                new CsrfResponse(token.getToken())
         );
     }
 
+    public record CsrfResponse(String csrfToken) {}
     public record ApiResponse(
             int status,
             String message,
