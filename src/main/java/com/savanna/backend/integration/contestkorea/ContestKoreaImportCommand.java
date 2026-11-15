@@ -50,6 +50,15 @@ public final class ContestKoreaImportCommand {
                 throw new IllegalStateException("Manual import/migration is restricted to local H2. Do not target EC2 remotely.");
             }
             String audienceMode=environment.getProperty("contest-korea.import.audience-only","");
+            String curateMode=environment.getProperty("contest-korea.import.curate-only","");
+            if(!curateMode.isBlank()) {
+                try {
+                    var csv=java.nio.file.Path.of(environment.getRequiredProperty("contest-korea.import.csv"));
+                    String label=csv.getFileName()+":SHA256="+java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(java.nio.file.Files.readAllBytes(csv)));
+                    var result=ContestKoreaCuration.run(databaseUrl,environment.getProperty("spring.datasource.username","sa"),environment.getProperty("spring.datasource.password",""),ContestKoreaCsv.read(csv),label,curateMode);
+                    throw new CurationComplete(result);
+                }catch(java.sql.SQLException|java.io.IOException|java.security.NoSuchAlgorithmException failure){throw new IllegalStateException("Contest curation failed",failure);}
+            }
             if(!audienceMode.isBlank()) {
                 try {
                     var result=AnnouncementAudienceMigration.run(databaseUrl,environment.getProperty("spring.datasource.username","sa"),
@@ -76,6 +85,14 @@ public final class ContestKoreaImportCommand {
         try {
             context = application.run(options.toArray(String[]::new));
         } catch (Exception exception) {
+            if(exception instanceof CurationComplete complete) {
+                try {
+                    var directory=java.nio.file.Path.of("tmp/import-reports");java.nio.file.Files.createDirectories(directory);
+                    var path=directory.resolve("contest-korea-curation-"+UUID.randomUUID()+".json");
+                    var report=JsonMapper.builder().build().writerWithDefaultPrettyPrinter().writeValueAsString(complete.result);
+                    java.nio.file.Files.writeString(path,report);System.out.println("CONTEST_KOREA_CURATION_RESULT "+report);System.out.println("CONTEST_KOREA_CURATION_REPORT "+path.toAbsolutePath());return 0;
+                }catch(java.io.IOException failure){System.out.println("CURATION_REPORT_FAILED mode="+complete.result.mode()+" deleted="+complete.result.deletedAnnouncements());return 2;}
+            }
             if(exception instanceof AudiencePolicyComplete complete) {
                 var report=JsonMapper.builder().build().writerWithDefaultPrettyPrinter().writeValueAsString(complete.result);
                 System.out.println("ANNOUNCEMENT_AUDIENCE_RESULT "+report);
@@ -110,8 +127,8 @@ public final class ContestKoreaImportCommand {
                 try{
                     var result=context.getBean(ContestKoreaWriter.class).save(category,fetched);
                     items.addAll(fetched);skipped.addAll(result.skippedIds());
-                    categoryReports.put(category.name(),java.util.Map.of("received",fetched.size(),"created",result.created(),"updated",result.updated(),"excluded",result.excluded(),"failedItems",result.skippedIds().size(),"issues",result.issues(),"skippedIds",result.skippedIds()));
-                    System.out.println("CONTEST_KOREA_RESULT category="+category+" fetched="+fetched.size()+" created="+result.created()+" updated="+result.updated()+" skipped="+result.skippedIds().size()+" failedItems="+result.skippedIds().size()+" failedRequests=0 excluded="+result.excluded());
+                    categoryReports.put(category.name(),java.util.Map.of("received",fetched.size(),"created",result.created(),"updated",result.updated(),"excluded",result.excluded(),"failedItems",result.skippedIds().size(),"issues",result.issues(),"skippedIds",result.skippedIds(),"suppressed",result.suppressedIds().size(),"suppressedIds",result.suppressedIds()));
+                    System.out.println("CONTEST_KOREA_RESULT category="+category+" fetched="+fetched.size()+" created="+result.created()+" updated="+result.updated()+" skipped="+result.skippedIds().size()+" failedItems="+result.skippedIds().size()+" failedRequests=0 excluded="+result.excluded()+" suppressed="+result.suppressedIds().size());
                     if(!result.issues().isEmpty())System.out.println("CONTEST_KOREA_ISSUES "+result.issues());
                 }catch(Exception exception){failed=true;categoryReports.put(category.name(),java.util.Map.of("received",fetched.size(),"failedItems",fetched.size(),"rolledBack",true));System.out.println(ContestKoreaFailureDiagnostics.summarize(exception));}
             }
@@ -155,6 +172,10 @@ public final class ContestKoreaImportCommand {
     }
 
     private static final class BackupOnlyComplete extends RuntimeException {}
+    private static final class CurationComplete extends RuntimeException {
+        private final ContestKoreaCuration.Result result;
+        private CurationComplete(ContestKoreaCuration.Result result){this.result=result;}
+    }
     private static final class AudiencePolicyComplete extends RuntimeException {
         private final AnnouncementAudienceMigration.Result result;
         private AudiencePolicyComplete(AnnouncementAudienceMigration.Result result){this.result=result;}

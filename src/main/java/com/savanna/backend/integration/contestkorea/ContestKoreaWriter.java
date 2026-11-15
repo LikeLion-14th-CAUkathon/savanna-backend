@@ -14,7 +14,7 @@ public class ContestKoreaWriter {
     private final AnnouncementRepository announcements;
     private final SourceAudit audit;
     private final com.savanna.backend.service.AnnouncementAudienceService audiences;
-    public record ImportResult(int created, int updated, int excluded, List<String> skippedIds, List<String> issues) {}
+    public record ImportResult(int created, int updated, int excluded, List<String> skippedIds, List<String> issues,List<String> suppressedIds) {}
 
     @Transactional
     public ImportResult save(ContestKoreaCategory category, List<ContestKoreaItem> items) {
@@ -22,7 +22,11 @@ public class ContestKoreaWriter {
         int created = 0, updated = 0, excluded = 0;
         var skipped = new ArrayList<String>();
         var issues = new ArrayList<String>();
+        var suppressed = new ArrayList<String>();
         for (var item : items) {
+            if(item!=null && ContestKoreaRemovalRegistry.contains(item.id())) {
+                suppressed.add(item.id().trim());issues.add(item.id()+":USER_REMOVED");continue;
+            }
             ContestKoreaPeriod period;
             try {
                 if (item == null || clean(item.id()) == null || item.id().trim().length() > 100
@@ -64,7 +68,7 @@ public class ContestKoreaWriter {
             }
             if (existing.isEmpty()) created++; else updated++;
         }
-        return new ImportResult(created, updated, excluded, List.copyOf(skipped), List.copyOf(issues));
+        return new ImportResult(created, updated, excluded, List.copyOf(skipped), List.copyOf(issues),List.copyOf(suppressed));
     }
 
     private static String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
