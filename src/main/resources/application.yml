@@ -1,4 +1,6 @@
 app:
+  invitation:
+    url-template: ${TEAM_INVITATION_URL_TEMPLATE:}
   auth:
     cookie:
       secure: ${AUTH_COOKIE_SECURE:false}
