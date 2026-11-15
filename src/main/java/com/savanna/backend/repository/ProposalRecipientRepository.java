@@ -61,4 +61,9 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
     List<ProposalRecipient> findReceivedProposals(
             @Param("userId") Long userId
     );
+
+    boolean existsByProposal_ProposalIdAndUser_UserId(
+            Long proposalId,
+            Long userId
+    );
 }

@@ -21,7 +21,12 @@ import com.savanna.backend.dto.response.TeamInvitationListResponseDto;
 import com.savanna.backend.invitation.InvitationTokenProvider;
 import java.util.List;
 import java.util.Comparator;
+import com.savanna.backend.domain.ProposalRecipient;
+import com.savanna.backend.repository.ProposalRepository;
+import com.savanna.backend.repository.ProposalRecipientRepository;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HexFormat;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -37,6 +42,8 @@ public class TeamInvitationService {
     private final InvitationTokenProvider invitationTokenProvider;
     private final TeamMembershipPolicy membershipPolicy;
     private final com.savanna.backend.invitation.InvitationUrlFactory invitationUrls;
+    private final ProposalRepository proposalRepository;
+    private final ProposalRecipientRepository proposalRecipientRepository;
 
     @Transactional
     public TeamInvitationCreateResponseDto createInvitation(
@@ -257,7 +264,10 @@ public class TeamInvitationService {
 
         teamMemberRepository.save(newMember);
 
-        // 9. 합류 결과 반환
+        // 9. 미마감 제안에 신규 팀원 등록
+        registerExistingProposals(team, user);
+
+        // 10. 합류 결과 반환
         return TeamInvitationAcceptResponseDto.from(team);
     }
 
@@ -371,4 +381,29 @@ public class TeamInvitationService {
         invitation.revoke();
     }
 
+    private void registerExistingProposals(Team team, User user) {
+
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+
+        var proposals = proposalRepository.findActiveProposalsByTeamId(
+                team.getTeamId(),
+                today
+        );
+
+        for (var proposal : proposals) {
+
+            boolean exists =
+                    proposalRecipientRepository
+                            .existsByProposal_ProposalIdAndUser_UserId(
+                                    proposal.getProposalId(),
+                                    user.getUserId()
+                            );
+
+            if (!exists) {
+                proposalRecipientRepository.save(
+                        new ProposalRecipient(proposal, user)
+                );
+            }
+        }
+    }
 }
