@@ -21,6 +21,7 @@ class SingleTeamMembershipConcurrencyTest {
     @Autowired UserRepository users;
     @Autowired TeamRepository teams;
     @Autowired TeamMemberRepository members;
+    @Autowired TeamInvitationRepository invitations;
     @Autowired PlatformTransactionManager transactions;
     @Test void simultaneousCreatesProduceExactlyOneTeamAndOneMembership() throws Exception {
         var tx=new TransactionTemplate(transactions);String id=UUID.randomUUID().toString();
@@ -33,7 +34,7 @@ class SingleTeamMembershipConcurrencyTest {
             tx.executeWithoutResult(s->assertEquals(1,members.findAllByUser_UserId(userId).size()));
         } finally {
             start.countDown();pool.shutdownNow();assertTrue(pool.awaitTermination(10,TimeUnit.SECONDS));
-            tx.executeWithoutResult(s->{var existing=members.findAllByUser_UserId(userId);var teamIds=existing.stream().map(m->m.getTeam().getTeamId()).toList();members.deleteAll(existing);members.flush();teams.deleteAllById(teamIds);users.deleteById(userId);});
+            tx.executeWithoutResult(s->{var existing=members.findAllByUser_UserId(userId);var teamIds=existing.stream().map(m->m.getTeam().getTeamId()).toList();for(Long teamId:teamIds)invitations.deleteAll(invitations.findAllByTeam_TeamId(teamId));invitations.flush();members.deleteAll(existing);members.flush();teams.deleteAllById(teamIds);users.deleteById(userId);});
         }
     }
 }

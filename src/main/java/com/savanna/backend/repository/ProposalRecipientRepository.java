@@ -40,6 +40,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
             from ProposalRecipient r
             where r.proposal.expedition.teamId = :teamId and r.status = :status
               and r.user.userId <> r.proposal.sender.userId
+              and exists (select m from TeamMember m where m.team.teamId = :teamId and m.user.userId = r.user.userId)
             group by r.proposal.expedition.expeditionId
             """)
     List<ExpeditionJoinedCount> countDistinctUsersByTeamAndStatus(

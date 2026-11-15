@@ -167,16 +167,16 @@ public class TeamInvitationService {
             );
         }
 
-        // 4. 현재 팀 인원 조회
-        long currentMemberCount =
-                teamMemberRepository.countByTeam_TeamId(
+        // Use the same current membership snapshot for the roster and its count.
+        var members =
+                teamMemberRepository.findAllByTeam_TeamId(
                         invitation.getTeam().getTeamId()
                 );
 
         // 5. 팀 정보 및 인원 반환
         return TeamInvitationPreviewResponseDto.from(
                 invitation,
-                currentMemberCount
+                members
         );
     }
 
