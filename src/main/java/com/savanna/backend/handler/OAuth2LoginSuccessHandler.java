@@ -86,6 +86,7 @@ public class OAuth2LoginSuccessHandler
         );
 
         // 토큰은 쿠키에만 보관하고 프런트에서 후속 인증 처리를 진행합니다.
+        response.setHeader("Cache-Control","no-store");
         response.sendRedirect(successRedirectUrl);
     }
 }
