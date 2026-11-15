@@ -43,3 +43,6 @@ team-photo:
   enabled: ${TEAM_PHOTO_ENABLED:false}
   bucket: ${TEAM_PHOTO_BUCKET:savanna-team-photos-20261114}
   region: ${TEAM_PHOTO_REGION:ap-northeast-2}
+
+server:
+  forward-headers-strategy: framework
