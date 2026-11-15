@@ -49,7 +49,7 @@ public class TeamInvitationController {
     }
 
     @GetMapping("/api/v1/invitations/{token}")
-    @io.swagger.v3.oas.annotations.Operation(summary="초대 링크 미리보기",description="공개 조회. 만료된 과거 링크 또는 폐기된 링크는 410입니다.")
+    @io.swagger.v3.oas.annotations.Operation(summary="초대 링크 미리보기",description="공개 조회. 현재 팀원 members의 name과 characterId(숫자 1~9, 미설정 null)를 함께 반환합니다. 탈퇴자는 제외합니다. 만료된 과거 링크 또는 폐기된 링크는 410입니다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="200",description="유효한 초대 링크 미리보기")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="410",description="EXPIRED 또는 REVOKED 링크",content=@io.swagger.v3.oas.annotations.media.Content(schema=@io.swagger.v3.oas.annotations.media.Schema(implementation=com.savanna.backend.error.ErrorResponse.class)))
     public ResponseEntity<com.savanna.backend.dto.response.DataResponse<TeamInvitationPreviewResponseDto>> previewInvitation(

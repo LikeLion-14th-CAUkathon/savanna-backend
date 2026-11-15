@@ -58,6 +58,12 @@ class TeamExpeditionApiTest {
         em.persist(recipient);
     }
 
+    void currentMember(User user,long teamId) {
+        if(em.find(Team.class,teamId)==null)
+            em.createNativeQuery("insert into team(team_id,name,project_name,project_intro,created_at) values(?, '팀', '프로젝트', '소개', CURRENT_TIMESTAMP)").setParameter(1,teamId).executeUpdate();
+        em.persist(new TeamMember(user,em.find(Team.class,teamId),TeamRole.MEMBER));
+    }
+
     @Test void returnsMapFieldsAndZeroWhenNoOneHasJoined() throws Exception {
         var e = expedition(1L, "공고명", LocalDateTime.of(2026, 12, 30, 18, 0));
         e.changeStage(ExpeditionStage.DRAFT);
@@ -81,6 +87,7 @@ class TeamExpeditionApiTest {
         var p1 = proposal(e, sender);
         recipient(p1, joined, ProposalRecipientStatus.JOINED);
         recipient(p1, secondJoined, ProposalRecipientStatus.JOINED);
+        currentMember(joined,1L);currentMember(secondJoined,1L);
         recipient(p1, user(), ProposalRecipientStatus.PENDING);
         recipient(p1, user(), ProposalRecipientStatus.DECLINED);
         em.flush();
@@ -97,6 +104,7 @@ class TeamExpeditionApiTest {
         var sender = user();
         var joined = user();
         recipient(proposal(first, sender), joined, ProposalRecipientStatus.JOINED);
+        currentMember(joined,1L);
         recipient(proposal(other, sender), joined, ProposalRecipientStatus.JOINED);
         em.flush();
         mvc.perform(get("/api/v1/teams/1/expeditions").principal(() -> "member"))

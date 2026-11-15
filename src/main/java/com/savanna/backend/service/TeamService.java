@@ -29,6 +29,7 @@ public class TeamService {
     private final UserRepository userRepository;
     private final TeamPhotoService teamPhotos;
     private final TeamMembershipPolicy membershipPolicy;
+    private final TeamInvitationService invitations;
 
     @Transactional
     public TeamCreateResponseDto createTeam(
@@ -71,10 +72,13 @@ public class TeamService {
 
         teamMemberRepository.save(teamMember);
 
+        // REQUIRED propagation joins this transaction: a failed invitation rolls back the team and leader too.
+        var invitation = invitations.createInvitation(userId,team.getTeamId());
+
         // 5. 결과 반환
         return TeamCreateResponseDto.from(
                 team,
-                TeamRole.LEADER
+                TeamRole.LEADER,teamPhotos.url(team),invitation.inviteUrl()
         );
     }
 
@@ -187,5 +191,27 @@ public class TeamService {
             return null;
         }
         return value.trim();
+    }
+
+    @Transactional
+    public com.savanna.backend.dto.response.TeamLeaveResponseDto leaveTeam(Long userId,Long teamId) {
+        membershipPolicy.lockUser(userId);
+        if(teamId==null||teamId<=0)throw new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.INVALID_REQUEST);
+        teamRepository.findByIdForUpdate(teamId)
+                .orElseThrow(()->new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.RESOURCE_NOT_FOUND));
+        var member=teamMemberRepository.findByUser_UserIdAndTeam_TeamId(userId,teamId)
+                .orElseThrow(()->new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.FORBIDDEN));
+        var remaining=teamMemberRepository.findAllByTeam_TeamId(teamId).stream()
+                .filter(m -> !m.getUser().getUserId().equals(userId))
+                .sorted(java.util.Comparator.comparing(TeamMember::getJoinedAt).thenComparing(TeamMember::getTeamMemberId)).toList();
+        if(remaining.isEmpty())
+            throw new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.TEAM_LAST_MEMBER_CANNOT_LEAVE);
+        Long newLeader=null;
+        if(member.getRole()==TeamRole.LEADER) {
+            var successor=remaining.get(0);successor.promoteToLeader();newLeader=successor.getUser().getUserId();
+        }
+        teamMemberRepository.delete(member);
+        teamMemberRepository.flush();
+        return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId,userId,newLeader);
     }
 }
