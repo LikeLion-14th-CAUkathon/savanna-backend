@@ -5,6 +5,8 @@ import com.savanna.backend.enums.EnrollmentStatus;
 import com.savanna.backend.service.AnnouncementEligibilityEvaluator;
 import com.savanna.backend.service.EligibilityTeamReader.TeamSnapshot;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import java.util.Arrays;
 import java.util.List;
 import static com.savanna.backend.enums.EligibilityStatus.*;
@@ -16,6 +18,37 @@ class AnnouncementEligibilityEvaluatorTest {
     Announcement announcement(String requirement) {
         return Announcement.builder().minMembers(2).maxMembers(4)
                 .enrollmentRequirement(requirement).build();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"온라인,,", "서울,온라인,", "서울,,온라인 · 서울", "서울,,온　라　인", "서울,,온라인·오프라인 병행"})
+    void onlineMarkerSatisfiesRegionRegardlessOfRegionalRestriction(String participationRegion, String region, String venueNote) {
+        var announcement = Announcement.builder().minMembers(2).maxMembers(4)
+                .enrollmentRequirement("누구나").participationRegion(participationRegion)
+                .region(region).venueNote(venueNote).build();
+        var team = new TeamSnapshot(1L, List.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.GRADUATED));
+        var result = evaluator.evaluate(announcement, 1L, team);
+        assertEquals(SATISFIED, result.status());
+        assertTrue(result.conditions().stream().anyMatch(c -> c.code().equals("PARTICIPATION_REGION") && c.status() == SATISFIED));
+    }
+
+    @Test void offlineRegionalRestrictionStillRequiresConfirmation() {
+        var announcement = Announcement.builder().minMembers(2).maxMembers(4)
+                .enrollmentRequirement("누구나").participationRegion("서울")
+                .venueNote("오프라인 · 서울").build();
+        var team = new TeamSnapshot(1L, List.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ENROLLED));
+        var result = evaluator.evaluate(announcement, 1L, team);
+        assertTrue(result.conditions().stream().anyMatch(c -> c.code().equals("PARTICIPATION_REGION") && c.status() == TEAM_INFO_REQUIRED));
+    }
+
+    @Test void onlineDoesNotOverrideMemberCountOrEnrollment() {
+        var announcement = Announcement.builder().minMembers(2).maxMembers(4)
+                .enrollmentRequirement("재학생").participationRegion("온라인").build();
+        var team = new TeamSnapshot(1L, List.of(EnrollmentStatus.GRADUATED));
+        var result = evaluator.evaluate(announcement, 1L, team);
+        assertEquals(MISMATCH, result.status());
+        assertTrue(result.conditions().stream().anyMatch(c -> c.code().equals("MEMBER_COUNT") && c.status() == MISMATCH));
+        assertTrue(result.conditions().stream().anyMatch(c -> c.code().equals("ENROLLMENT") && c.status() == MISMATCH));
     }
 
     @Test void allKnownConditionsSatisfied() {

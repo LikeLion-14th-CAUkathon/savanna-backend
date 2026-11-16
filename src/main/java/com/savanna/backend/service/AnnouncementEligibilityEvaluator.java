@@ -23,7 +23,10 @@ public class AnnouncementEligibilityEvaluator {
                     "참가 대상에 별도 조건이 있습니다. 공고 상세 원문을 확인해야 합니다."));
         }
         String participationRegion = announcement.getParticipationRegion();
-        if (participationRegion != null && !participationRegion.isBlank()
+        if (isOnline(announcement)) {
+            conditions.add(new Condition("PARTICIPATION_REGION", SATISFIED,
+                    "온라인 공고는 지역과 관계없이 참여할 수 있습니다."));
+        } else if (participationRegion != null && !participationRegion.isBlank()
                 && !Set.of("온라인", "전국").contains(participationRegion.replaceAll("\\s+", ""))) {
             conditions.add(new Condition("PARTICIPATION_REGION", TEAM_INFO_REQUIRED,
                     "참가 가능 지역은 " + participationRegion + "입니다. 공고 원문에서 지역 자격을 확인해야 합니다."));
@@ -67,6 +70,17 @@ public class AnnouncementEligibilityEvaluator {
                 ? TEAM_INFO_REQUIRED : SATISFIED;
         return new AnnouncementEligibilityResponse(announcement.getAnnouncementId(),
                 team == null ? requestedTeamId : team.teamId(), status, List.copyOf(conditions));
+    }
+
+    // 접수 방법이 온라인인 것과 온라인 공고인 것은 구분합니다.
+    private boolean isOnline(Announcement announcement) {
+        return containsOnline(announcement.getParticipationRegion())
+                || containsOnline(announcement.getRegion())
+                || containsOnline(announcement.getVenueNote());
+    }
+
+    private boolean containsOnline(String value) {
+        return value != null && value.replaceAll("[\\p{Z}\\s\\u200B\\uFEFF]+", "").contains("온라인");
     }
 
     // 문장 일부를 검색해 자격을 단정하지 않습니다. 명확한 전체 문자열만 지원합니다.
