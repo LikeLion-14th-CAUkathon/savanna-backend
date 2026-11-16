@@ -30,6 +30,7 @@ public class TeamService {
     private final TeamPhotoService teamPhotos;
     private final TeamMembershipPolicy membershipPolicy;
     private final TeamInvitationService invitations;
+    private final TeamDeletionService deletion;
 
     @Transactional
     public TeamCreateResponseDto createTeam(
@@ -204,14 +205,16 @@ public class TeamService {
         var remaining=teamMemberRepository.findAllByTeam_TeamId(teamId).stream()
                 .filter(m -> !m.getUser().getUserId().equals(userId))
                 .sorted(java.util.Comparator.comparing(TeamMember::getJoinedAt).thenComparing(TeamMember::getTeamMemberId)).toList();
-        if(remaining.isEmpty())
-            throw new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.TEAM_LAST_MEMBER_CANNOT_LEAVE);
+        if(remaining.isEmpty()) {
+            deletion.deleteTeam(teamId);
+            return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId,userId,null,true);
+        }
         Long newLeader=null;
         if(member.getRole()==TeamRole.LEADER) {
             var successor=remaining.get(0);successor.promoteToLeader();newLeader=successor.getUser().getUserId();
         }
         teamMemberRepository.delete(member);
         teamMemberRepository.flush();
-        return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId,userId,newLeader);
+        return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId,userId,newLeader,false);
     }
 }

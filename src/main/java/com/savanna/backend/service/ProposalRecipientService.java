@@ -20,6 +20,7 @@ public class ProposalRecipientService {
     private final TeamRepository teams;
     private final TeamMemberRepository members;
     private final TeamMembershipPolicy membershipPolicy;
+    private final jakarta.persistence.EntityManager em;
 
     private void requireUser(Long userId) {
         if (userId == null || userId <= 0 || !users.existsById(userId)) {
@@ -51,8 +52,14 @@ public class ProposalRecipientService {
         if (recipientId == null || recipientId <= 0 || status == null || status == ProposalRecipientStatus.PENDING) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
+        var snapshot = recipients.findById(recipientId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (!snapshot.getUser().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
+        var lockedTeam = teams.findForProposalResponse(snapshot.getProposal().getExpedition().getTeamId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         var recipient = recipients.findForResponse(recipientId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        em.refresh(recipient, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         if (!recipient.getUser().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
         if(status==ProposalRecipientStatus.JOINED) {
             membershipPolicy.requireOnlyTeam(userId,recipient.getProposal().getExpedition().getTeamId());
@@ -61,8 +68,7 @@ public class ProposalRecipientService {
         boolean changed = recipient.respond(status);
         if (changed && status == ProposalRecipientStatus.JOINED) {
             Long teamId = recipient.getProposal().getExpedition().getTeamId();
-            var team = teams.findForProposalResponse(teamId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+            var team = lockedTeam;
             // 이미 팀원인 수신자는 역할을 유지하고, 새 가입자만 MEMBER로 등록합니다.
             if (!members.existsByUser_UserIdAndTeam_TeamId(userId, teamId)) {
                 if (!recipient.getUser().isOnboardingCompleted()) throw new BusinessException(ErrorCode.FORBIDDEN);

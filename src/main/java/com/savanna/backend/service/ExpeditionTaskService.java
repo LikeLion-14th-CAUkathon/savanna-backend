@@ -30,7 +30,9 @@ public class ExpeditionTaskService {
     @Transactional
     public ExpeditionTaskResponse create(Long expeditionId, ExpeditionTaskRequest request, Principal principal) {
         if (request == null) invalid();
-        var expedition = findExpedition(expeditionId);
+        validateId(expeditionId);
+        var expedition = expeditionRepository.findForUpdate(expeditionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         authorize(principal, expedition.getTeamId(), true);
         return ExpeditionTaskResponse.from(taskRepository.saveAndFlush(new ExpeditionTask(
                 expedition, request.title(), request.dueDate(), request.dueTime())));
