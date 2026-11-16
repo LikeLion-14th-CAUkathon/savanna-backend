@@ -29,7 +29,7 @@ public class AnnouncementController {
     private final AnnouncementService announcementService;
     private final AnnouncementEligibilityService announcementEligibilityService;
 
-    @Operation(summary = "공고 참가 조건 확인", description = "결과는 저장하지 않습니다. 팀 연동 전이거나 정보가 불충분하면 TEAM_INFO_REQUIRED를 반환합니다.")
+    @Operation(summary = "공고 참가 조건 확인", description = "결과는 저장하지 않습니다. 참가 가능 지역·개최 지역·장소 안내에 온라인이 표시된 공고는 지역 조건을 SATISFIED로 반환합니다. 인원·재학 상태 등 다른 조건은 별도로 검사하며, 정보가 불충분하면 TEAM_INFO_REQUIRED를 반환합니다.")
     @GetMapping("/{announcementId}/eligibility")
     public AnnouncementEligibilityResponse checkEligibility(
             @PathVariable("announcementId") Long announcementId,
