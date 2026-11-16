@@ -71,14 +71,14 @@ class TeamLifecycleApiTest {
         mvc.perform(patch("/api/v1/teams/{id}",teamId).header("Authorization",auth(first)).contentType("application/json").content("{\"name\":\"승계된 팀\"}")).andExpect(status().isOk());
         mvc.perform(patch("/api/v1/teams/{id}",teamId).header("Authorization",auth(leader)).contentType("application/json").content("{\"name\":\"수정 불가\"}")).andExpect(status().isForbidden());
     }
-    @Test void equalJoinTimesUseMembershipIdAndLastMemberCannotLeave()throws Exception {
+    @Test void equalJoinTimesUseMembershipIdAndLastMemberDeletesTeam()throws Exception {
         var firstMember=members.findByUser_UserIdAndTeam_TeamId(first.getUserId(),teamId).orElseThrow();
         var lastMember=members.findByUser_UserIdAndTeam_TeamId(last.getUserId(),teamId).orElseThrow();
         ReflectionTestUtils.setField(lastMember,"joinedAt",firstMember.getJoinedAt());assertTrue(firstMember.getTeamMemberId()<lastMember.getTeamMemberId());
         mvc.perform(delete(leave()).header("Authorization",auth(leader))).andExpect(jsonPath("$.data.newLeaderUserId").value(first.getUserId()));
         mvc.perform(delete(leave()).header("Authorization",auth(last))).andExpect(status().isOk());
-        mvc.perform(delete(leave()).header("Authorization",auth(first))).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("TEAM_LAST_MEMBER_CANNOT_LEAVE"));
-        assertNotNull(em.find(Team.class,teamId));assertEquals(1,members.countByTeam_TeamId(teamId));
+        mvc.perform(delete(leave()).header("Authorization",auth(first))).andExpect(status().isOk()).andExpect(jsonPath("$.data.teamDeleted").value(true)).andExpect(jsonPath("$.data.newLeaderUserId").value(org.hamcrest.Matchers.nullValue()));
+        assertNull(em.find(Team.class,teamId));assertEquals(0,members.countByTeam_TeamId(teamId));assertTrue(invitations.findAllByTeam_TeamId(teamId).isEmpty());
     }
     @Test void leaveRequiresAuthenticationMembershipAndValidTeam()throws Exception {
         mvc.perform(delete(leave())).andExpect(status().isUnauthorized());
@@ -86,6 +86,33 @@ class TeamLifecycleApiTest {
         mvc.perform(delete("/api/v1/teams/9223372036854775807/members/me").header("Authorization",auth(first))).andExpect(status().isNotFound());
         mvc.perform(delete("/api/v1/teams/0/members/me").header("Authorization",auth(first))).andExpect(status().isBadRequest());
         assertEquals(3,members.countByTeam_TeamId(teamId));
+    }
+    @Test void lastLeaveDeletesAllScopedRecordsAndPreservesOtherTeamAndSharedAnnouncement()throws Exception {
+        long otherTeamId=create(outsider).get("teamId").asLong();
+        var announcement=Announcement.builder().title("공유 공고").deadline(LocalDate.now().plusDays(10)).build();em.persist(announcement);
+        var expedition=new Expedition(teamId,announcement);em.persist(expedition);
+        var otherExpedition=new Expedition(otherTeamId,announcement);em.persist(otherExpedition);
+        var proposal=new Proposal(expedition,leader,"제안");em.persist(proposal);
+        var recipient=new ProposalRecipient(proposal,last);em.persist(recipient);
+        var task=new ExpeditionTask(expedition,"일정",LocalDate.now(),null);em.persist(task);
+        var checklist=new ExpeditionChecklist(expedition,"제출물",0);em.persist(checklist);
+        var history=new ExpeditionStageHistory(expedition,ExpeditionStage.KICKOFF,ExpeditionStage.DRAFT,leader.getUserId());em.persist(history);
+        var recommendation=new AnnouncementRecommendation(em.find(Team.class,teamId),announcement,80,"추천","input","announcement",RecommendationSource.MOCK,LocalDateTime.now());em.persist(recommendation);
+        em.flush();
+        mvc.perform(delete(leave()).header("Authorization",auth(first))).andExpect(status().isOk()).andExpect(jsonPath("$.data.teamDeleted").value(false));
+        mvc.perform(delete(leave()).header("Authorization",auth(last))).andExpect(status().isOk());
+        mvc.perform(delete(leave()).header("Authorization",auth(leader))).andExpect(status().isOk()).andExpect(jsonPath("$.data.teamDeleted").value(true));
+        em.flush();em.clear();
+        assertNull(em.find(Team.class,teamId));assertNull(em.find(Expedition.class,expedition.getExpeditionId()));
+        assertNull(em.find(Proposal.class,proposal.getProposalId()));assertNull(em.find(ProposalRecipient.class,recipient.getProposalRecipientId()));
+        assertNull(em.find(ExpeditionTask.class,task.getTaskId()));assertNull(em.find(ExpeditionChecklist.class,checklist.getChecklistId()));
+        assertNull(em.find(ExpeditionStageHistory.class,history.getStageHistoryId()));assertNull(em.find(AnnouncementRecommendation.class,recommendation.getRecommendationId()));
+        assertTrue(invitations.findAllByTeam_TeamId(teamId).isEmpty());assertEquals(0,members.countByTeam_TeamId(teamId));
+        assertNotNull(em.find(Team.class,otherTeamId));assertNotNull(em.find(Expedition.class,otherExpedition.getExpeditionId()));
+        assertNotNull(em.find(Announcement.class,announcement.getAnnouncementId()));assertNotNull(em.find(User.class,leader.getUserId()));
+        String token=inviteUrl.substring(inviteUrl.lastIndexOf('/')+1);
+        mvc.perform(get("/api/v1/invitations/{token}",token)).andExpect(status().isNotFound());
+        assertNotEquals(teamId,create(leader).get("teamId").asLong());
     }
     @Test void leavePreservesProposalResponseHistoryButRemovesActiveExpeditionCount()throws Exception {
         var announcement=Announcement.builder().title("탈퇴 이력 검증").deadline(LocalDate.now().plusDays(10)).build();em.persist(announcement);
@@ -100,11 +127,12 @@ class TeamLifecycleApiTest {
         mvc.perform(get("/api/v1/teams/{id}/expeditions",teamId).header("Authorization",auth(leader))).andExpect(jsonPath("$[0].joinedCount").value(0));
         mvc.perform(get("/api/v1/expeditions/{id}",expedition.getExpeditionId()).header("Authorization",auth(last))).andExpect(status().isForbidden());
     }
-    @Test void swaggerShowsAutoInvitationAndLeaveResponseAndConflict()throws Exception {
+    @Test void swaggerShowsAutoInvitationAndLeaveResponseAndDeletion()throws Exception {
         mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
             .andExpect(jsonPath("$.components.schemas.TeamCreateResponseDto.properties.inviteUrl").exists())
             .andExpect(jsonPath("$.paths['/api/v1/teams/{teamId}/members/me'].delete.responses['200'].content['application/json'].schema").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/teams/{teamId}/members/me'].delete.responses['409']").exists())
-            .andExpect(jsonPath("$.components.schemas.TeamLeaveResponseDto.properties.newLeaderUserId").exists());
+            .andExpect(jsonPath("$.paths['/api/v1/teams/{teamId}/members/me'].delete.responses['409']").doesNotExist())
+            .andExpect(jsonPath("$.components.schemas.TeamLeaveResponseDto.properties.newLeaderUserId").exists())
+            .andExpect(jsonPath("$.components.schemas.TeamLeaveResponseDto.properties.teamDeleted").exists());
     }
 }

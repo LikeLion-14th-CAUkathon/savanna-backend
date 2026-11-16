@@ -25,14 +25,13 @@ public class TeamController {
     private final TeamService teamService;
     private final com.savanna.backend.service.TeamPhotoService teamPhotos;
 
-    @io.swagger.v3.oas.annotations.Operation(summary="내 팀 탈퇴",description="본인의 소속만 제거하고 팀·원정·제안·응답 기록은 보존합니다. 팀장이 탈퇴하면 가장 먼저 가입한 남은 팀원에게 승계합니다(가입 시각 같으면 팀원 기록 ID순). 마지막 팀원은 409입니다. 탈퇴 후 다른 팀 생성/초대 가입이 가능합니다.")
+    @io.swagger.v3.oas.annotations.Operation(summary="내 팀 탈퇴",description="팀원이 남으면 본인의 소속만 제거하고 팀·원정·제안·응답 기록은 보존합니다. 팀장이 탈퇴하면 가장 먼저 가입한 남은 팀원에게 승계합니다(가입 시각 같으면 팀원 기록 ID순). 마지막 팀원이 탈퇴하면 팀과 연결된 원정·제안·응답·일정·초대·추천을 실제 삭제하며 teamDeleted=true입니다. 탈퇴 후 다른 팀 생성/초대 가입이 가능합니다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="200",description="탈퇴 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="400",description="잘못된 팀 ID"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="401",description="로그인 필요",content=@io.swagger.v3.oas.annotations.media.Content),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="403",description="해당 팀 소속 아님",content=@io.swagger.v3.oas.annotations.media.Content(schema=@io.swagger.v3.oas.annotations.media.Schema(implementation=com.savanna.backend.error.ErrorResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="404",description="팀 없음"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="409",description="마지막 팀원은 탈퇴 불가(TEAM_LAST_MEMBER_CANNOT_LEAVE)")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="404",description="팀 없음")
     })
     @DeleteMapping("/{teamId}/members/me")
     public ResponseEntity<DataResponse<com.savanna.backend.dto.response.TeamLeaveResponseDto>> leaveTeam(

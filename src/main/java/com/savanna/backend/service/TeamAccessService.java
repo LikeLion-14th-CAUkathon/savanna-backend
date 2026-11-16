@@ -75,11 +75,14 @@ public class TeamAccessService implements ExpeditionTeamAccess, EligibilityTeamR
     }
 
     @Override
+    @Transactional
     public ProposalTeamContext requireTeam(Principal principal, Long teamId) {
         Long userId = authenticatedUserId(principal);
         if (teamId == null) {
             teamId = onlyTeam(userId).orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST));
         }
+        requireMembership(userId, teamId);
+        teams.findByIdForUpdate(teamId).orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         requireMembership(userId, teamId);
         return new ProposalTeamContext(teamId, userId, members.findAllByTeam_TeamId(teamId).stream()
                 .map(member -> member.getUser().getUserId()).filter(id -> !id.equals(userId)).toList());
