@@ -1,6 +1,7 @@
 package com.savanna.backend.repository;
 
 import com.savanna.backend.domain.Proposal;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,10 +14,10 @@ public interface ProposalRepository
         extends JpaRepository<Proposal, Long> {
     long countByExpedition_TeamId(Long teamId);
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "sender")
-    java.util.List<Proposal> findAllByExpedition_ExpeditionIdOrderByCreatedAtDescProposalIdDesc(Long expeditionId);
+    @EntityGraph(attributePaths = "sender")
+    List<Proposal> findAllByExpedition_ExpeditionIdOrderByCreatedAtDescProposalIdDesc(Long expeditionId);
 
-    @org.springframework.data.jpa.repository.EntityGraph(
+    @EntityGraph(
             attributePaths = {"expedition", "expedition.announcement", "sender"}
     )
     @Query("""
@@ -60,7 +61,7 @@ public interface ProposalRepository
               where e.teamId = :teamId
           )
         """)
-    int detachSenderByUserAndTeam(
+    void detachSenderByUserAndTeam(
             @Param("userId") Long userId,
             @Param("teamId") Long teamId
     );

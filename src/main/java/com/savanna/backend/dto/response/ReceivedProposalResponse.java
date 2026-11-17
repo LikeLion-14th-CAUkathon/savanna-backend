@@ -38,13 +38,13 @@ public record ReceivedProposalResponse(
                 expedition.getExpeditionId(),
                 announcement.getAnnouncementId(),
                 announcement.getTitle(),
-                senderName,          // <-- 수정됨
+                senderName,
                 proposal.getMessage(),
                 recipient.getStatus(),
                 proposal.getCreatedAt(),
                 recipient.getReadAt(),
-                senderId,            // <-- 수정됨
-                senderCharacterId    // <-- 수정됨
+                senderId,
+                senderCharacterId
         );
     }
 }

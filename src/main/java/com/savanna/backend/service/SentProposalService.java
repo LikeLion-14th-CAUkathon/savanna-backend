@@ -43,7 +43,7 @@ public class SentProposalService {
         if (!members.existsByUser_UserIdAndTeam_TeamId(userId, proposal.getExpedition().getTeamId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        // 집계와 개인별 상태를 같은 조회 결과로 구성합니다.
+        // 같은 조회 결과로 집계와 개인별 상태 구성
         return ProposalRecipientsResponse.from(proposalId,
                 recipients.findAllByProposal_ProposalIdOrderByProposalRecipientIdAsc(proposalId));
     }
@@ -76,7 +76,7 @@ public class SentProposalService {
         }
         record Observed(com.savanna.backend.domain.ProposalRecipient recipient, long version) {}
         var observed = new java.util.ArrayList<Observed>();
-        // 동일 배치 안에서 일정한 순서로 잠가 동시 확인 요청의 잠금 순서를 맞춥니다.
+        // 동시 확인 요청의 잠금 순서를 맞추기 위해 같은 배치 안에서 일정한 순서로 잠금
         for (var response : request.responses().stream().sorted(java.util.Comparator.comparing(
                 ProposalResponsesReadRequest.Response::proposalRecipientId)).toList()) {
             var recipient = recipients.findForResponse(response.proposalRecipientId())

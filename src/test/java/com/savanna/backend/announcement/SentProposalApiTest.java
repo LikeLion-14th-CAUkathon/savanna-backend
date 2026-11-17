@@ -33,7 +33,7 @@ class SentProposalApiTest {
         other = user("other");
         team = new Team("팀", "프로젝트", "소개", null, null, null);
         em.persist(team);
-        // 같은 팀의 다른 사용자에게도 발신자 전용 정보를 공개하지 않습니다.
+        // 같은 팀의 다른 사용자에게도 발신자 전용 정보 비공개
         em.persist(new TeamMember(sender, team, TeamRole.LEADER));
         em.persist(new TeamMember(other, team, TeamRole.MEMBER));
         em.flush();
@@ -160,7 +160,7 @@ class SentProposalApiTest {
         recipient(proposal, teamUser("expedition-declined"), ProposalRecipientStatus.DECLINED);
         recipient(proposal, teamUser("expedition-pending"), ProposalRecipientStatus.PENDING);
         recipient(proposal(sender), other, ProposalRecipientStatus.JOINED);
-        // 마감·비공개·제출 완료 여부와 관계없이 기존 원정의 이력을 제공합니다.
+        // 마감·비공개·제출 완료 여부와 관계없이 기존 원정 이력 제공
         proposal.getExpedition().getAnnouncement().changeVisibility(false);
         proposal.getExpedition().changeStage(ExpeditionStage.SUBMITTED);
         em.flush();
@@ -194,7 +194,7 @@ class SentProposalApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].totalCount").value(0))
                 .andExpect(jsonPath("$[0].joinedCount").value(0)).andExpect(jsonPath("$[0].declinedCount").value(0))
                 .andExpect(jsonPath("$[0].pendingCount").value(0)).andExpect(jsonPath("$[0].recipients").isEmpty());
-        // 팀·공고 중복 제약을 유지하면서 다른 팀의 빈 원정을 만듭니다.
+        // 팀·공고 중복 제약을 유지하며 다른 팀의 빈 원정 생성
         var anotherTeam = new Team("다른 팀", "프로젝트", "소개", null, null, null);
         em.persist(anotherTeam);
         var emptyTeamMember=user("empty-team-member");

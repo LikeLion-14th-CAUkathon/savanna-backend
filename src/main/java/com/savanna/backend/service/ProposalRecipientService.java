@@ -6,6 +6,8 @@ import com.savanna.backend.enums.ProposalRecipientStatus;
 import com.savanna.backend.enums.TeamRole;
 import com.savanna.backend.error.*;
 import com.savanna.backend.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,12 +18,12 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ProposalRecipientService {
     private final ProposalRecipientRepository recipients;
-    private final ProposalRepository proposals;
+    private final ProposalRecipientSyncService recipientSync;
     private final UserRepository users;
     private final TeamRepository teams;
     private final TeamMemberRepository members;
     private final TeamMembershipPolicy membershipPolicy;
-    private final jakarta.persistence.EntityManager em;
+    private final EntityManager em;
 
     private void requireUser(Long userId) {
         if (userId == null || userId <= 0 || !users.existsById(userId)) {
@@ -63,7 +65,7 @@ public class ProposalRecipientService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         var recipient = recipients.findForResponse(recipientId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        em.refresh(recipient, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        em.refresh(recipient, LockModeType.PESSIMISTIC_WRITE);
         if (!recipient.getUser().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
         if (recipient.isRevoked()) throw new BusinessException(ErrorCode.FORBIDDEN);
         Long targetTeamId = recipient.getProposal()
@@ -71,28 +73,18 @@ public class ProposalRecipientService {
                 .getTeamId();
 
         membershipPolicy.requireOnlyTeam(userId, targetTeamId);
-        // 응답 변경·읽음·버전 갱신을 같은 수신 기록 잠금 아래 처리합니다.
+        // 같은 수신 기록 잠금 아래 응답 변경·읽음·버전 갱신 처리
         boolean changed = recipient.respond(status);
         if (changed && status == ProposalRecipientStatus.JOINED) {
-            Long teamId = recipient.getProposal().getExpedition().getTeamId();
-            var team = lockedTeam;
-            // 이미 팀원인 수신자는 역할을 유지하고, 새 가입자만 MEMBER로 등록합니다.
-            if (!members.existsByUser_UserIdAndTeam_TeamId(userId, teamId)) {
+            // 기존 팀원의 역할은 유지하고 새 가입자만 MEMBER로 등록
+            if (!members.existsByUser_UserIdAndTeam_TeamId(userId, targetTeamId)) {
                 if (!recipient.getUser().isOnboardingCompleted()) throw new BusinessException(ErrorCode.FORBIDDEN);
-                members.save(new TeamMember(recipient.getUser(), team, TeamRole.MEMBER));
+                members.save(new TeamMember(recipient.getUser(), lockedTeam, TeamRole.MEMBER));
 
-                recipients.deleteRevokedByUserAndTeam(userId, teamId);
-
-                // 새로 팀에 합류할 때 팀의 기존 마감 전·미제출 제안들에도 PENDING 수신자로 등록
-                var today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
-                for (var activeProposal : proposals.findActiveProposalsByTeamId(teamId, today)) {
-                    if (!recipients.existsByProposal_ProposalIdAndUser_UserId(activeProposal.getProposalId(), userId)) {
-                        recipients.save(new com.savanna.backend.domain.ProposalRecipient(activeProposal, recipient.getUser()));
-                    }
-                }
+                recipientSync.registerExistingProposals(targetTeamId, recipient.getUser());
             }
         }
-        // DECLINED로 변경해도 팀 소속·역할은 유지합니다. 원정 합류 집계는 현재 status로 계산합니다.
+        // DECLINED 변경 시 팀 소속·역할 유지, 원정 합류 인원은 현재 status로 집계
         return ProposalRecipientResponse.from(recipient);
     }
 

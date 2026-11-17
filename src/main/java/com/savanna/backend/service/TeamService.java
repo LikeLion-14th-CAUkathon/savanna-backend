@@ -14,7 +14,6 @@ import com.savanna.backend.repository.ProposalRecipientRepository;
 import com.savanna.backend.repository.ProposalRepository;
 import com.savanna.backend.repository.TeamMemberRepository;
 import com.savanna.backend.repository.TeamRepository;
-import com.savanna.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -29,7 +28,6 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
-    private final UserRepository userRepository;
     private final TeamPhotoService teamPhotos;
     private final TeamMembershipPolicy membershipPolicy;
     private final TeamInvitationService invitations;

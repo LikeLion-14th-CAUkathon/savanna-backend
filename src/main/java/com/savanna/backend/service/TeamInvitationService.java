@@ -4,47 +4,43 @@ import com.savanna.backend.domain.Team;
 import com.savanna.backend.domain.TeamInvitation;
 import com.savanna.backend.domain.TeamMember;
 import com.savanna.backend.domain.User;
+import com.savanna.backend.dto.response.TeamInvitationAcceptResponseDto;
 import com.savanna.backend.dto.response.TeamInvitationCreateResponseDto;
+import com.savanna.backend.dto.response.TeamInvitationListResponseDto;
+import com.savanna.backend.dto.response.TeamInvitationPreviewResponseDto;
 import com.savanna.backend.enums.TeamRole;
+import com.savanna.backend.invitation.InvitationTokenProvider;
+import com.savanna.backend.invitation.InvitationUrlFactory;
 import com.savanna.backend.repository.TeamInvitationRepository;
 import com.savanna.backend.repository.TeamMemberRepository;
 import com.savanna.backend.repository.TeamRepository;
 import com.savanna.backend.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import com.savanna.backend.dto.response.TeamInvitationPreviewResponseDto;
-import com.savanna.backend.dto.response.TeamInvitationAcceptResponseDto;
-import com.savanna.backend.dto.response.TeamInvitationListResponseDto;
-import com.savanna.backend.invitation.InvitationTokenProvider;
-import java.util.List;
-import java.util.Comparator;
-import com.savanna.backend.domain.ProposalRecipient;
-import com.savanna.backend.repository.ProposalRepository;
-import com.savanna.backend.repository.ProposalRecipientRepository;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.HexFormat;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Comparator;
+import java.util.HexFormat;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class TeamInvitationService {
 
     private final TeamInvitationRepository invitationRepository;
-    private final jakarta.persistence.EntityManager em;
+    private final EntityManager em;
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final InvitationTokenProvider invitationTokenProvider;
     private final TeamMembershipPolicy membershipPolicy;
-    private final com.savanna.backend.invitation.InvitationUrlFactory invitationUrls;
-    private final ProposalRepository proposalRepository;
-    private final ProposalRecipientRepository proposalRecipientRepository;
+    private final InvitationUrlFactory invitationUrls;
+    private final ProposalRecipientSyncService recipientSync;
 
     @Transactional
     public TeamInvitationCreateResponseDto createInvitation(
@@ -270,11 +266,8 @@ public class TeamInvitationService {
 
         teamMemberRepository.save(newMember);
 
-        // 이전 탈퇴 정책의 무효 기록이 재등록을 막지 않도록 실제 가입 후 정리합니다.
-        proposalRecipientRepository.deleteRevokedByUserAndTeam(userId, team.getTeamId());
-
         // 9. 미마감 제안에 신규 팀원 등록
-        registerExistingProposals(team, user);
+        recipientSync.registerExistingProposals(team.getTeamId(), user);
 
         // 10. 합류 결과 반환
         return TeamInvitationAcceptResponseDto.from(team);
@@ -388,31 +381,5 @@ public class TeamInvitationService {
 
         // 5. 링크 폐기
         invitation.revoke();
-    }
-
-    private void registerExistingProposals(Team team, User user) {
-
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
-
-        var proposals = proposalRepository.findActiveProposalsByTeamId(
-                team.getTeamId(),
-                today
-        );
-
-        for (var proposal : proposals) {
-
-            boolean exists =
-                    proposalRecipientRepository
-                            .existsByProposal_ProposalIdAndUser_UserId(
-                                    proposal.getProposalId(),
-                                    user.getUserId()
-                            );
-
-            if (!exists) {
-                proposalRecipientRepository.save(
-                        new ProposalRecipient(proposal, user)
-                );
-            }
-        }
     }
 }
