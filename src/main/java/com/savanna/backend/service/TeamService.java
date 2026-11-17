@@ -220,10 +220,6 @@ public class TeamService {
         teamMemberRepository.delete(member);
         teamMemberRepository.flush();
 
-        // 4. 팀 소속 삭제
-        teamMemberRepository.delete(member);
-        teamMemberRepository.flush();
-
         return new TeamLeaveResponseDto(teamId, userId, newLeader, false);
     }
 }
