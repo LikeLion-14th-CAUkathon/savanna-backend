@@ -16,6 +16,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ProposalRecipientService {
     private final ProposalRecipientRepository recipients;
+    private final ProposalRepository proposals;
     private final UserRepository users;
     private final TeamRepository teams;
     private final TeamMemberRepository members;
@@ -79,6 +80,14 @@ public class ProposalRecipientService {
             if (!members.existsByUser_UserIdAndTeam_TeamId(userId, teamId)) {
                 if (!recipient.getUser().isOnboardingCompleted()) throw new BusinessException(ErrorCode.FORBIDDEN);
                 members.save(new TeamMember(recipient.getUser(), team, TeamRole.MEMBER));
+
+                // 새로 팀에 합류할 때 팀의 기존 마감 전·미제출 제안들에도 PENDING 수신자로 등록
+                var today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
+                for (var activeProposal : proposals.findActiveProposalsByTeamId(teamId, today)) {
+                    if (!recipients.existsByProposal_ProposalIdAndUser_UserId(activeProposal.getProposalId(), userId)) {
+                        recipients.save(new com.savanna.backend.domain.ProposalRecipient(activeProposal, recipient.getUser()));
+                    }
+                }
             }
         }
         // DECLINED로 변경해도 팀 소속·역할은 유지합니다. 원정 합류 집계는 현재 status로 계산합니다.
