@@ -161,6 +161,19 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
             Long userId
     );
 
+    // 이전 탈퇴 정책으로 남은 무효 기록만 정리합니다. 유효한 수신 기록은 유지합니다.
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        delete from ProposalRecipient r
+        where r.user.userId = :userId
+          and r.revokedAt is not null
+          and r.proposal.proposalId in (
+              select p.proposalId from Proposal p
+              where p.expedition.teamId = :teamId
+          )
+        """)
+    int deleteRevokedByUserAndTeam(@Param("userId") Long userId, @Param("teamId") Long teamId);
+
     @Modifying(flushAutomatically = true)
     @Query("""
         delete from ProposalRecipient r

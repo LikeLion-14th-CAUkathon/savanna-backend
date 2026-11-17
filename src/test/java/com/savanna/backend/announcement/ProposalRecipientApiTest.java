@@ -235,6 +235,100 @@ class ProposalRecipientApiTest {
         assertEquals(0, recipients.countJoinedForExpedition(history.getProposal().getExpedition().getExpeditionId(), team.getTeamId()));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = ProposalRecipientStatus.class, names = {"JOINED", "DECLINED"})
+    void invitationRejoinReplacesLegacyRevokedRecordAndAllowsFreshResponse(ProposalRecipientStatus previousStatus) throws Exception {
+        // 이전 탈퇴 정책으로 보존된 기록: 현재 소속은 없고 수신 기록만 무효화됨
+        var legacy = invitation(receiver);
+        legacy.respond(previousStatus);
+        legacy.revoke();
+        Long proposalId = legacy.getProposal().getProposalId();
+        var link = invitations.createInvitation(sender.getUserId(), team.getTeamId());
+        em.flush(); em.clear();
+
+        invitations.acceptInvitation(receiver.getUserId(), link.token());
+        em.flush(); em.clear();
+        var active = recipients.findReceivedProposals(receiver.getUserId());
+        assertEquals(1, active.size());
+        var fresh = active.get(0);
+        assertEquals(proposalId, fresh.getProposal().getProposalId());
+        assertNotEquals(legacy.getProposalRecipientId(), fresh.getProposalRecipientId());
+        assertNull(em.find(ProposalRecipient.class, legacy.getProposalRecipientId()));
+        assertEquals(ProposalRecipientStatus.PENDING, fresh.getStatus());
+        assertNull(fresh.getReadAt());
+        assertNull(fresh.getRespondedAt());
+        assertEquals(0, fresh.getResponseVersion());
+        mvc.perform(get("/api/v1/proposal-recipients/received").header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/v1/expeditions/{id}/proposals", fresh.getProposal().getExpedition().getExpeditionId())
+                        .header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].recipients.length()").value(1));
+        mvc.perform(patch(responsePath(fresh)).header("Authorization", bearer(receiver))
+                        .contentType("application/json").content("{\"status\":\"JOINED\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("JOINED"));
+    }
+
+    @Test void firstJoinResponseReplacesOtherLegacyRecordsAndExcludesClosedOrSubmittedProposals() throws Exception {
+        var entry = invitation(receiver);
+        var legacy = invitation(receiver);
+        legacy.respond(ProposalRecipientStatus.DECLINED);
+        legacy.revoke();
+        var submitted = invitation(outsider);
+        submitted.getProposal().getExpedition().changeStage(ExpeditionStage.SUBMITTED);
+        var closedAnnouncement = Announcement.builder().title("마감 공고")
+                .deadline(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).minusDays(1)).build();
+        em.persist(closedAnnouncement);
+        var closedExpedition = new Expedition(team.getTeamId(), closedAnnouncement);
+        em.persist(closedExpedition);
+        var closed = new Proposal(closedExpedition, sender, "마감 제안");
+        em.persist(closed);
+        em.flush(); em.clear();
+
+        mvc.perform(patch(responsePath(entry)).header("Authorization", bearer(receiver))
+                        .contentType("application/json").content("{\"status\":\"JOINED\"}"))
+                .andExpect(status().isOk());
+        em.flush(); em.clear();
+        var active = recipients.findReceivedProposals(receiver.getUserId());
+        assertEquals(2, active.size());
+        assertNull(em.find(ProposalRecipient.class, legacy.getProposalRecipientId()));
+        assertEquals(ProposalRecipientStatus.JOINED, em.find(ProposalRecipient.class, entry.getProposalRecipientId()).getStatus());
+        assertTrue(active.stream().anyMatch(r -> r.getProposal().getProposalId().equals(legacy.getProposal().getProposalId())
+                && r.getStatus() == ProposalRecipientStatus.PENDING));
+        assertFalse(recipients.existsByProposal_ProposalIdAndUser_UserId(closed.getProposalId(), receiver.getUserId()));
+        assertFalse(recipients.existsByProposal_ProposalIdAndUser_UserId(submitted.getProposal().getProposalId(), receiver.getUserId()));
+        assertNotNull(em.find(ProposalRecipient.class, submitted.getProposalRecipientId()));
+    }
+
+    @Test void senderCanLeaveThroughApiWhileRemainingMembersKeepProposalAndResponses() throws Exception {
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        em.persist(new TeamMember(outsider, team, TeamRole.MEMBER));
+        var joined = invitation(receiver);
+        joined.respond(ProposalRecipientStatus.JOINED);
+        var pending = new ProposalRecipient(joined.getProposal(), outsider);
+        em.persist(pending); em.flush();
+        Long proposalId = joined.getProposal().getProposalId();
+        Long expeditionId = joined.getProposal().getExpedition().getExpeditionId();
+        var link = invitations.createInvitation(sender.getUserId(), team.getTeamId());
+
+        mvc.perform(delete("/api/v1/teams/{id}/members/me", team.getTeamId()).header("Authorization", bearer(sender)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.teamDeleted").value(false));
+        em.clear();
+        assertFalse(members.existsByUser_UserIdAndTeam_TeamId(sender.getUserId(), team.getTeamId()));
+        assertNull(em.find(Proposal.class, proposalId).getSender());
+        assertEquals(ProposalRecipientStatus.JOINED, em.find(ProposalRecipient.class, joined.getProposalRecipientId()).getStatus());
+        assertEquals(ProposalRecipientStatus.PENDING, em.find(ProposalRecipient.class, pending.getProposalRecipientId()).getStatus());
+        assertEquals(1, members.findAllByTeam_TeamId(team.getTeamId()).stream().filter(m -> m.getRole() == TeamRole.LEADER).count());
+        mvc.perform(get("/api/v1/proposal-recipients/received").header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].senderId").value(org.hamcrest.Matchers.nullValue()));
+        mvc.perform(get("/api/v1/expeditions/{id}", expeditionId).header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.joinedCount").value(1));
+        invitations.acceptInvitation(sender.getUserId(), link.token());
+        em.flush(); em.clear();
+        assertEquals(1, recipients.findReceivedProposals(sender.getUserId()).size());
+        assertEquals(ProposalRecipientStatus.PENDING, recipients.findReceivedProposals(sender.getUserId()).get(0).getStatus());
+    }
+
     @Test void existingLeaderKeepsRoleWhenJoiningAndDeclineDoesNotRemoveMembership() throws Exception {
         var recipient = invitation(sender);
         mvc.perform(patch(responsePath(recipient)).header("Authorization", bearer(sender))
