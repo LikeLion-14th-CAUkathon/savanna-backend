@@ -16,6 +16,9 @@ public class SentProposalService {
     private final ProposalRepository proposals;
     private final ProposalRecipientRepository recipients;
     private final UserRepository users;
+    private final TeamMemberRepository members;
+    private final TeamRepository teams;
+    private final TeamMembershipPolicy membershipPolicy;
 
     private void requireUser(Long userId) {
         if (userId == null || userId <= 0 || !users.existsById(userId)) {
@@ -35,6 +38,9 @@ public class SentProposalService {
         var proposal = proposals.findById(proposalId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         if (!proposal.getSender().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
+        if (!members.existsByUser_UserIdAndTeam_TeamId(userId, proposal.getExpedition().getTeamId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
         // 집계와 개인별 상태를 같은 조회 결과로 구성합니다.
         return ProposalRecipientsResponse.from(proposalId,
                 recipients.findAllByProposal_ProposalIdOrderByProposalRecipientIdAsc(proposalId));
@@ -43,6 +49,7 @@ public class SentProposalService {
     @Transactional
     public ProposalResponsesReadResponse markResponsesRead(Long userId, Long proposalId, ProposalResponsesReadRequest request) {
         requireUser(userId);
+        membershipPolicy.lockUser(userId);
         if (proposalId == null || proposalId <= 0 || request == null || request.responses() == null
                 || request.responses().isEmpty() || request.responses().size() > 100) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
@@ -57,6 +64,12 @@ public class SentProposalService {
         var proposal = proposals.findById(proposalId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         if (!proposal.getSender().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
+        Long teamId = proposal.getExpedition().getTeamId();
+        teams.findByIdForUpdate(teamId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (!members.existsByUser_UserIdAndTeam_TeamId(userId, teamId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
         record Observed(com.savanna.backend.domain.ProposalRecipient recipient, long version) {}
         var observed = new java.util.ArrayList<Observed>();
         // 동일 배치 안에서 일정한 순서로 잠가 동시 확인 요청의 잠금 순서를 맞춥니다.
@@ -65,6 +78,9 @@ public class SentProposalService {
             var recipient = recipients.findForResponse(response.proposalRecipientId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
             if (!recipient.getProposal().getProposalId().equals(proposalId)) throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            if (recipient.isRevoked() || !members.existsByUser_UserIdAndTeam_TeamId(recipient.getUser().getUserId(), teamId)) {
+                throw new BusinessException(ErrorCode.FORBIDDEN);
+            }
             if (response.responseVersion() > recipient.getResponseVersion()) throw new BusinessException(ErrorCode.CONFLICT);
             observed.add(new Observed(recipient, response.responseVersion()));
         }

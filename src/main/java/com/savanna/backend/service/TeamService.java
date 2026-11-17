@@ -5,6 +5,7 @@ import com.savanna.backend.domain.TeamMember;
 import com.savanna.backend.domain.User;
 import com.savanna.backend.dto.request.TeamCreateRequestDto;
 import com.savanna.backend.dto.response.TeamCreateResponseDto;
+import com.savanna.backend.dto.response.TeamLeaveResponseDto;
 import com.savanna.backend.enums.TeamRole;
 import com.savanna.backend.repository.TeamMemberRepository;
 import com.savanna.backend.repository.TeamRepository;
@@ -17,6 +18,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.savanna.backend.dto.response.TeamListResponseDto;
 import com.savanna.backend.dto.response.TeamDetailResponseDto;
 import com.savanna.backend.dto.request.TeamUpdateRequestDto;
+import com.savanna.backend.repository.ProposalRecipientRepository;
+import com.savanna.backend.enums.ProposalRecipientStatus;
 
 import java.util.List;
 
@@ -31,6 +34,7 @@ public class TeamService {
     private final TeamMembershipPolicy membershipPolicy;
     private final TeamInvitationService invitations;
     private final TeamDeletionService deletion;
+    private final ProposalRecipientRepository proposalRecipientRepository;
 
     @Transactional
     public TeamCreateResponseDto createTeam(
@@ -213,8 +217,22 @@ public class TeamService {
         if(member.getRole()==TeamRole.LEADER) {
             var successor=remaining.get(0);successor.promoteToLeader();newLeader=successor.getUser().getUserId();
         }
+        // 팀 탈퇴 시 해당 팀에서 받은 미응답 제안 정리
+        proposalRecipientRepository.deletePendingByUserAndTeam(
+                userId,
+                teamId,
+                ProposalRecipientStatus.PENDING
+        );
+
+        // 응답 이력은 보존하고 응답 권한 무효화
+        proposalRecipientRepository
+                .findUnrevokedByUserAndTeam(userId, teamId)
+                .forEach(recipient -> recipient.revoke());
+
+        // 팀 소속 삭제
         teamMemberRepository.delete(member);
         teamMemberRepository.flush();
-        return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId,userId,newLeader,false);
+
+        return new TeamLeaveResponseDto(teamId, userId, newLeader, false);
     }
 }

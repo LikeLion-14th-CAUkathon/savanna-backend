@@ -8,6 +8,7 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 정보를 찾을 수 없습니다."),
     CONFLICT(HttpStatus.CONFLICT, "현재 상태에서 요청을 처리할 수 없습니다."),
+    PROPOSAL_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "팀당 공고 제안은 최대 6개까지 생성할 수 있습니다."),
     ALREADY_IN_TEAM(HttpStatus.CONFLICT, "이미 소속된 팀이 있습니다. 한 계정은 한 팀에만 소속될 수 있습니다."),
     RECOMMENDATION_AI_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "추천 AI가 연결되지 않았거나 일시적으로 사용할 수 없습니다."),
     RECOMMENDATION_AI_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "추천 AI의 응답을 확인할 수 없습니다."),
