@@ -270,6 +270,9 @@ public class TeamInvitationService {
 
         teamMemberRepository.save(newMember);
 
+        // 이전 탈퇴 정책의 무효 기록이 재등록을 막지 않도록 실제 가입 후 정리합니다.
+        proposalRecipientRepository.deleteRevokedByUserAndTeam(userId, team.getTeamId());
+
         // 9. 미마감 제안에 신규 팀원 등록
         registerExistingProposals(team, user);
 

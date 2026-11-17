@@ -81,6 +81,8 @@ public class ProposalRecipientService {
                 if (!recipient.getUser().isOnboardingCompleted()) throw new BusinessException(ErrorCode.FORBIDDEN);
                 members.save(new TeamMember(recipient.getUser(), team, TeamRole.MEMBER));
 
+                recipients.deleteRevokedByUserAndTeam(userId, teamId);
+
                 // 새로 팀에 합류할 때 팀의 기존 마감 전·미제출 제안들에도 PENDING 수신자로 등록
                 var today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
                 for (var activeProposal : proposals.findActiveProposalsByTeamId(teamId, today)) {
