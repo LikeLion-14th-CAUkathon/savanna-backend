@@ -114,16 +114,15 @@ class TeamLifecycleApiTest {
         mvc.perform(get("/api/v1/invitations/{token}",token)).andExpect(status().isNotFound());
         assertNotEquals(teamId,create(leader).get("teamId").asLong());
     }
-    @Test void leavePreservesProposalResponseHistoryButRemovesActiveExpeditionCount()throws Exception {
+    @Test void leaveDeletesProposalResponseHistoryAndRemovesActiveExpeditionCount()throws Exception {
         var announcement=Announcement.builder().title("탈퇴 이력 검증").deadline(LocalDate.now().plusDays(10)).build();em.persist(announcement);
         var expedition=new Expedition(teamId,announcement);em.persist(expedition);var proposal=new Proposal(expedition,leader,"같이 해요");em.persist(proposal);
         var recipient=new ProposalRecipient(proposal,last);recipient.respond(ProposalRecipientStatus.JOINED);em.persist(recipient);em.flush();
         Long recipientId=recipient.getProposalRecipientId();em.clear();
-        var storedBefore=em.find(ProposalRecipient.class,recipientId);
-        var respondedAt=storedBefore.getRespondedAt();long version=storedBefore.getResponseVersion();
         mvc.perform(get("/api/v1/teams/{id}/expeditions",teamId).header("Authorization",auth(leader))).andExpect(jsonPath("$[0].joinedCount").value(1));
         mvc.perform(delete(leave()).header("Authorization",auth(last))).andExpect(status().isOk());em.flush();em.clear();
-        var saved=em.find(ProposalRecipient.class,recipientId);assertNotNull(saved);assertEquals(ProposalRecipientStatus.JOINED,saved.getStatus());assertEquals(respondedAt,saved.getRespondedAt());assertEquals(version,saved.getResponseVersion());
+        assertNull(em.find(ProposalRecipient.class,recipientId));
+        assertNotNull(em.find(Expedition.class,expedition.getExpeditionId()));
         mvc.perform(get("/api/v1/teams/{id}/expeditions",teamId).header("Authorization",auth(leader))).andExpect(jsonPath("$[0].joinedCount").value(0));
         mvc.perform(get("/api/v1/expeditions/{id}",expedition.getExpeditionId()).header("Authorization",auth(last))).andExpect(status().isForbidden());
     }

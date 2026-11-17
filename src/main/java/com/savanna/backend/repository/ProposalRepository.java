@@ -47,4 +47,16 @@ public interface ProposalRepository
             @Param("teamId") Long teamId,
             @Param("today") LocalDate today
     );
+
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+        delete from Proposal p
+        where p.sender.userId = :userId
+          and p.expedition.teamId = :teamId
+        """)
+    int deleteAllBySenderAndTeam(
+            @Param("userId") Long userId,
+            @Param("teamId") Long teamId
+    );
+
 }

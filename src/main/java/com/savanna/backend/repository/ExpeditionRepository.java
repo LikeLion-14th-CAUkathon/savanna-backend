@@ -15,6 +15,8 @@ public interface ExpeditionRepository extends JpaRepository<Expedition, Long> {
 
     Optional<Expedition> findByTeamIdAndAnnouncement_AnnouncementId(Long teamId, Long announcementId);
 
+    long countByTeamId(Long teamId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Expedition e join fetch e.announcement where e.expeditionId = :id")
     Optional<Expedition> findForUpdate(@Param("id") Long id);

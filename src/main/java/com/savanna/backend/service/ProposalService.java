@@ -95,20 +95,17 @@ public class ProposalService {
             throw new BusinessException(ErrorCode.CONFLICT);
         }
 
-        // 5. 접수 기간 확인
-        LocalDateTime now =
-                LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        // 5. 접수 기간 확인 (접수 예정 공고도 제안 가능하도록 시작일 검증 제거, 마감일만 확인)
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
 
-        if (announcement.getApplicationStartsAt() == null
-                || announcement.getApplicationStartsAt().isAfter(now)
-                || announcement.getDeadline() == null
+        if (announcement.getDeadline() == null
                 || announcement.getDeadline().isBefore(now.toLocalDate())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
 
         // requireTeam()에서 획득한 팀 쓰기 잠금 안에서 집계·생성합니다.
-        // 마감·제출 여부와 관계없이 해당 팀의 전체 제안을 집계합니다.
-        if (proposalRepository.countByExpedition_TeamId(context.teamId()) >= MAX_PROPOSALS_PER_TEAM) {
+        // 탈퇴한 팀원의 제안이 삭제되어도 오아시스에 남은 원정(Expedition) 기준으로 최대 6개를 제한합니다.
+        if (expeditionRepository.countByTeamId(context.teamId()) >= MAX_PROPOSALS_PER_TEAM) {
             throw new BusinessException(ErrorCode.PROPOSAL_LIMIT_EXCEEDED);
         }
 

@@ -189,4 +189,34 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
             @Param("userId") Long userId,
             @Param("teamId") Long teamId
     );
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+        delete from ProposalRecipient r
+        where r.user.userId = :userId
+          and r.proposal.proposalId in (
+              select p.proposalId
+              from Proposal p
+              where p.expedition.teamId = :teamId
+          )
+        """)
+    int deleteAllByUserAndTeam(
+            @Param("userId") Long userId,
+            @Param("teamId") Long teamId
+    );
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+        delete from ProposalRecipient r
+        where r.proposal.proposalId in (
+            select p.proposalId
+            from Proposal p
+            where p.sender.userId = :userId
+              and p.expedition.teamId = :teamId
+        )
+        """)
+    int deleteAllByProposalSenderAndTeam(
+            @Param("userId") Long userId,
+            @Param("teamId") Long teamId
+    );
 }
