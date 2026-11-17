@@ -73,11 +73,16 @@ class TeamAccessIntegrationTest {
         join(leader, team, TeamRole.LEADER);
         join(member, team, TeamRole.MEMBER);
 
+        em.persist(new UserRegion(leader, "SEOUL"));
+        em.persist(new UserRegion(member, "BUSAN"));
+        em.flush();
+
         assertEquals(member.getUserId(), access.requireMember(auth(member), team.getTeamId(), true));
         var snapshot = access.read(auth(member), null).orElseThrow();
         assertEquals(team.getTeamId(), snapshot.teamId());
         assertTrue(snapshot.memberEnrollmentStatuses().containsAll(List.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ON_LEAVE)));
         assertEquals(2, snapshot.memberEnrollmentStatuses().size());
+        assertTrue(snapshot.memberRegions().containsAll(List.of(List.of("SEOUL"), List.of("BUSAN"))));
         var proposal = access.requireTeam(auth(member));
         assertEquals(member.getUserId(), proposal.senderId());
         assertEquals(List.of(leader.getUserId()), proposal.recipientIds());

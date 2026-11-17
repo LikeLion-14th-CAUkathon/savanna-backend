@@ -10,11 +10,29 @@ import java.util.List;
 
 public interface ProposalRepository
         extends JpaRepository<Proposal, Long> {
+    long countByExpedition_TeamId(Long teamId);
+
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "sender")
     java.util.List<Proposal> findAllByExpedition_ExpeditionIdOrderByCreatedAtDescProposalIdDesc(Long expeditionId);
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"expedition", "expedition.announcement", "sender"})
-    java.util.List<Proposal> findAllBySender_UserIdOrderByCreatedAtDescProposalIdDesc(Long userId);
+    @org.springframework.data.jpa.repository.EntityGraph(
+            attributePaths = {"expedition", "expedition.announcement", "sender"}
+    )
+    @Query("""
+    select p
+    from Proposal p
+    where p.sender.userId = :userId
+      and exists (
+          select m
+          from TeamMember m
+          where m.user.userId = :userId
+            and m.team.teamId = p.expedition.teamId
+      )
+    order by p.createdAt desc, p.proposalId desc
+    """)
+    List<Proposal> findAllBySender_UserIdOrderByCreatedAtDescProposalIdDesc(
+            @Param("userId") Long userId
+    );
 
     @Query("""
     SELECT p

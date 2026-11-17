@@ -38,10 +38,11 @@ public class RecommendationStore {
         var memberList = members.findAllByTeam_TeamId(teamId).stream()
                 .sorted(Comparator.comparing(m -> m.getUser().getUserId())).toList();
         var statuses = memberList.stream().map(m -> m.getUser().getEnrollmentStatus()).toList();
-        var snapshot = new EligibilityTeamReader.TeamSnapshot(teamId, statuses);
+        var snapshot = access.snapshot(teamId, memberList);
         var hashParts = new ArrayList<String>(Arrays.asList(team.getName(), team.getProjectName(), team.getProjectIntro(),
                 team.getStack(), team.getGithubUrl(), team.getPresentationUrl()));
         memberList.forEach(m -> { hashParts.add(m.getUser().getUserId().toString()); hashParts.add(String.valueOf(m.getUser().getEnrollmentStatus())); });
+        hashParts.add(snapshot.memberRegions().toString());
         var now = now();
         List<RecommendationAiClient.Candidate> candidates = includeCandidates
                 ? announcements.findByVisibilityTrueAndDeadlineGreaterThanEqualAndApplicationStartsAtLessThanEqualOrderByDeadlineAscAnnouncementIdAsc(

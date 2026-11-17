@@ -36,6 +36,7 @@ import java.security.NoSuchAlgorithmException;
 public class TeamInvitationService {
 
     private final TeamInvitationRepository invitationRepository;
+    private final jakarta.persistence.EntityManager em;
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
@@ -167,16 +168,16 @@ public class TeamInvitationService {
             );
         }
 
-        // 4. 현재 팀 인원 조회
-        long currentMemberCount =
-                teamMemberRepository.countByTeam_TeamId(
+        // Use the same current membership snapshot for the roster and its count.
+        var members =
+                teamMemberRepository.findAllByTeam_TeamId(
                         invitation.getTeam().getTeamId()
                 );
 
         // 5. 팀 정보 및 인원 반환
         return TeamInvitationPreviewResponseDto.from(
                 invitation,
-                currentMemberCount
+                members
         );
     }
 
@@ -218,6 +219,11 @@ public class TeamInvitationService {
                         )
                 );
 
+        // Same lock order as leaving: user -> team. Recheck after waiting for the team.
+        Team lockedTeam = teamRepository.findByIdForUpdate(invitation.getTeam().getTeamId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "팀을 찾을 수 없습니다."));
+        em.refresh(invitation);
+
         // 3. 초대 링크 유효성 검사
         if (!invitation.isActive()) {
             throw new ResponseStatusException(
@@ -238,7 +244,7 @@ public class TeamInvitationService {
         }
 
         // 6. 초대된 팀 조회
-        Team team = invitation.getTeam();
+        Team team = lockedTeam;
         membershipPolicy.requireNoTeam(userId);
 
         // 7. 중복 가입 여부 확인

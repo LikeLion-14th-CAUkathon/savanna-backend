@@ -49,4 +49,6 @@ public class TeamMember {
         this.role = role;
         this.joinedAt = LocalDateTime.now();
     }
+
+    public void promoteToLeader() { this.role=TeamRole.LEADER; }
 }

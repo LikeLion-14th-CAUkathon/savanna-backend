@@ -1,6 +1,18 @@
 # 팀 공통 초대 링크
 
+신규 팀은 이제 팀 생성과 같은 트랜잭션에서 초대 링크를 자동 생성하며 생성 응답의 data.inviteUrl로 제공합니다. 별도 생성 POST가 필요하지 않습니다. [팀 생성·탈퇴 최신 계약](team-auto-invitation-and-leave.md)을 함께 확인합니다.
+
 ## 프런트 연결
+
+A03 미리보기 `GET /api/v1/invitations/{token}`의 기존 data에 현재 팀원 목록을 추가했습니다.
+
+```json
+{"members":[{"name":"팀장","characterId":2},{"name":"팀원","characterId":null}]}
+```
+
+이 예시는 data 내부의 추가 필드만 표시합니다. 기존 팀 정보·인원·만료일 필드는 유지합니다. characterId는 기존 프로필의 숫자 1~9 또는 null이며, 이메일·사용자 ID·역할은 이 members 항목에 포함하지 않습니다. 현재 소속 기준으로 가입 시각/팀원 기록 ID 순서로 반환하며 탈퇴자는 제외합니다. currentMemberCount는 members.length와 같습니다. 팀원이 없으면 빈 배열입니다. 유효한 토큰의 공개 조회 정책과 만료/폐기 시 410 정책은 유지합니다. 추가 DB 마이그레이션은 필요하지 않습니다.
+
+팀원 목록 추가 후 전체 214개 테스트 통과(실패/오류 0), bootJar 성공. 공개 조회·미설정 null·가입/탈퇴/프로필 변경 반영·빈 배열·무효/폐기 토큰의 비노출과 Swagger 필드를 확인했습니다. 실제 DB와 EC2는 변경하지 않았습니다.
 
 `GET /api/v1/teams/{teamId}/invitations/current`를 Bearer 인증으로 호출합니다. 팀장과 일반 팀원 모두 같은 활성 영구 링크를 조회합니다. 브라우저별 localStorage나 `window.location.origin`으로 공유 링크를 만들지 말고 `data.inviteUrl`을 그대로 복사·공유합니다.
 

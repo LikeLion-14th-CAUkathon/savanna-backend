@@ -29,7 +29,7 @@ public class AnnouncementController {
     private final AnnouncementService announcementService;
     private final AnnouncementEligibilityService announcementEligibilityService;
 
-    @Operation(summary = "공고 참가 조건 확인", description = "결과는 저장하지 않습니다. 팀 연동 전이거나 정보가 불충분하면 TEAM_INFO_REQUIRED를 반환합니다.")
+    @Operation(summary = "공고 참가 조건 확인", description = "결과는 저장하지 않습니다. 온라인 공고는 지역 검사를 생략합니다. 필수 참석 지역(개최 지역 또는 오프라인 장소 안내)이 있는 경우에만 모든 팀원의 참석 가능 지역과 비교하여 충족 시 SATISFIED, 불일치·미설정·장소 불명확 시 TEAM_INFO_REQUIRED를 반환합니다. 외부 API 참가 가능 지역이나 의미가 불명확한 CSV required_region만으로 참석 지역을 추정하지 않습니다. 재학 상태 등은 별도로 검사합니다. 인원은 이 API 및 추천에서 판정하지 않으며 D02 원정 상세에서 합류 인원의 최소 인원 미달·최대 인원 초과를 안내합니다.")
     @GetMapping("/{announcementId}/eligibility")
     public AnnouncementEligibilityResponse checkEligibility(
             @PathVariable("announcementId") Long announcementId,

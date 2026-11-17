@@ -15,5 +15,10 @@ import java.util.Optional;
 public interface EligibilityTeamReader {
     Optional<TeamSnapshot> read(Principal requester, Long teamId);
 
-    record TeamSnapshot(Long teamId, List<EnrollmentStatus> memberEnrollmentStatuses) {}
+    record TeamSnapshot(Long teamId, List<EnrollmentStatus> memberEnrollmentStatuses,
+                        List<List<String>> memberRegions) {
+        public TeamSnapshot(Long teamId, List<EnrollmentStatus> statuses) {
+            this(teamId, statuses, List.of());
+        }
+    }
 }

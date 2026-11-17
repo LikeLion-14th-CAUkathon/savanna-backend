@@ -68,6 +68,45 @@ class ProposalDuplicateApiTest {
         assertTrue(expeditions.existsByTeamIdAndAnnouncement_AnnouncementId(team.getTeamId(),announcement.getAnnouncementId()));
         assertTrue(expeditions.existsByTeamIdAndAnnouncement_AnnouncementId(otherTeam.getTeamId(),announcement.getAnnouncementId()));
     }
+    @Test void sixthProposalSucceedsAndSeventhIsRejectedWithoutExtraRows() throws Exception {
+        var today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        for (int i = 0; i < 5; i++) {
+            var oldAnnouncement = Announcement.builder().title("기존 " + i)
+                    .applicationStartsAt(today.minusDays(10).atStartOfDay())
+                    .deadline(i == 0 ? today.minusDays(1) : today.plusDays(7)).build();
+            em.persist(oldAnnouncement);
+            var expedition = new Expedition(team.getTeamId(), oldAnnouncement);
+            if (i == 1) expedition.changeStage(ExpeditionStage.SUBMITTED);
+            em.persist(expedition);
+            em.persist(new Proposal(expedition, sender, "기존 제안"));
+        }
+        em.flush();
+        mvc.perform(post(path()).header("Authorization", bearer(member)).contentType("application/json")
+                        .content(body(team, "여섯 번째")))
+                .andExpect(status().isCreated());
+        assertEquals(6, proposals.countByExpedition_TeamId(team.getTeamId()));
+        long expeditionBefore = expeditions.count(), recipientBefore = recipients.count();
+        var seventh = Announcement.builder().title("일곱 번째")
+                .applicationStartsAt(today.minusDays(1).atStartOfDay()).deadline(today.plusDays(7)).build();
+        em.persist(seventh); em.flush();
+        mvc.perform(post("/api/v1/announcements/{id}/proposals", seventh.getAnnouncementId())
+                        .header("Authorization", bearer(sender)).contentType("application/json")
+                        .content(body(team, "일곱 번째")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PROPOSAL_LIMIT_EXCEEDED"));
+        assertEquals(6, proposals.countByExpedition_TeamId(team.getTeamId()));
+        assertEquals(expeditionBefore, expeditions.count());
+        assertEquals(recipientBefore, recipients.count());
+
+        var otherSender = user("limit-other-sender");
+        var otherTeam = new Team("다른 팀", "프로젝트", "소개", null, null, null);
+        em.persist(otherTeam);
+        em.persist(new TeamMember(otherSender, otherTeam, TeamRole.LEADER)); em.flush();
+        mvc.perform(post(path()).header("Authorization", bearer(otherSender)).contentType("application/json")
+                        .content(body(otherTeam, "다른 팀 제안")))
+                .andExpect(status().isCreated());
+    }
+
     @Test void swaggerDocumentsConflictAsWellAsSuccess() throws Exception {
         mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/v1/announcements/{announcementId}/proposals'].post.responses['201']").exists())

@@ -22,29 +22,34 @@ public class AnnouncementEligibilityEvaluator {
             conditions.add(new Condition("ADDITIONAL_REQUIREMENTS", TEAM_INFO_REQUIRED,
                     "참가 대상에 별도 조건이 있습니다. 공고 상세 원문을 확인해야 합니다."));
         }
-        String participationRegion = announcement.getParticipationRegion();
-        if (participationRegion != null && !participationRegion.isBlank()
-                && !Set.of("온라인", "전국").contains(participationRegion.replaceAll("\\s+", ""))) {
-            conditions.add(new Condition("PARTICIPATION_REGION", TEAM_INFO_REQUIRED,
-                    "참가 가능 지역은 " + participationRegion + "입니다. 공고 원문에서 지역 자격을 확인해야 합니다."));
+        if (isOnline(announcement)) {
+            conditions.add(new Condition("PARTICIPATION_REGION", SATISFIED,
+                    "온라인 공고는 지역과 관계없이 참여할 수 있습니다."));
+        } else {
+            String attendanceRegion = announcement.getRegion();
+            if ((attendanceRegion == null || attendanceRegion.isBlank())
+                    && announcement.getVenueNote() != null
+                    && announcement.getVenueNote().contains("오프라인")) {
+                attendanceRegion = announcement.getVenueNote();
+            }
+            if (attendanceRegion != null && !attendanceRegion.isBlank()) {
+                Set<String> required = regionCodes(attendanceRegion);
+                boolean matched = !required.isEmpty() && team != null
+                        && team.memberEnrollmentStatuses() != null
+                        && !team.memberEnrollmentStatuses().isEmpty()
+                        && team.memberRegions() != null
+                        && team.memberRegions().size() == team.memberEnrollmentStatuses().size()
+                        && team.memberRegions().stream().allMatch(regions -> regions != null
+                        && regions.stream().anyMatch(region -> regionCodes(region).stream().anyMatch(required::contains)));
+                conditions.add(new Condition("PARTICIPATION_REGION", matched ? SATISFIED : TEAM_INFO_REQUIRED,
+                        matched ? "모든 팀원이 필수 참석 지역에 참석할 수 있습니다."
+                                : "필수 참석 지역과 팀원의 참석 가능 지역을 확인해 주세요: " + attendanceRegion));
+            }
         }
         if (team == null || team.memberEnrollmentStatuses() == null
                 || team.memberEnrollmentStatuses().isEmpty()) {
             conditions.add(new Condition("TEAM", TEAM_INFO_REQUIRED, "팀 및 가입된 팀원 정보를 확인해야 합니다."));
         } else {
-            int count = team.memberEnrollmentStatuses().size();
-            Integer min = announcement.getMinMembers();
-            Integer max = announcement.getMaxMembers();
-            if ((min != null && min < 1) || (max != null && max < 1)
-                    || (min != null && max != null && min > max)) {
-                conditions.add(new Condition("MEMBER_COUNT", TEAM_INFO_REQUIRED, "공고의 참가 인원 조건을 확인해야 합니다."));
-            } else if ((min != null && count < min) || (max != null && count > max)) {
-                conditions.add(new Condition("MEMBER_COUNT", MISMATCH, "현재 팀원 수가 공고의 참가 인원 범위와 일치하지 않습니다."));
-            } else if (min == null || max == null) {
-                conditions.add(new Condition("MEMBER_COUNT", TEAM_INFO_REQUIRED, "공고의 참가 인원 조건이 확인되지 않았습니다."));
-            } else {
-                conditions.add(new Condition("MEMBER_COUNT", SATISFIED, "현재 팀원 수가 확인된 참가 인원 조건을 충족합니다."));
-            }
             Set<EnrollmentStatus> allowed = allowedStatuses(announcement.getEnrollmentRequirement());
             if (announcement.getAllowedStatusRaw() != null) {
                 allowed = switch (announcement.getAllowedStatusRaw()) {
@@ -67,6 +72,38 @@ public class AnnouncementEligibilityEvaluator {
                 ? TEAM_INFO_REQUIRED : SATISFIED;
         return new AnnouncementEligibilityResponse(announcement.getAnnouncementId(),
                 team == null ? requestedTeamId : team.teamId(), status, List.copyOf(conditions));
+    }
+
+    // 접수 방법이 온라인인 것과 온라인 공고인 것은 구분합니다.
+    private boolean isOnline(Announcement announcement) {
+        return containsOnline(announcement.getParticipationRegion())
+                || containsOnline(announcement.getRegion())
+                || containsOnline(announcement.getVenueNote());
+    }
+
+    private boolean containsOnline(String value) {
+        return value != null && value.replaceAll("[\\p{Z}\\s\\u200B\\uFEFF]+", "").contains("온라인");
+    }
+
+    private Set<String> regionCodes(String value) {
+        var result = new java.util.HashSet<String>();
+        if (value == null) return result;
+        String normalized = value.replaceAll("[\\p{Z}\\s\\u200B\\uFEFF]+", "").toUpperCase(java.util.Locale.ROOT);
+        String[][] labels = {
+                {"SEOUL", "서울"}, {"BUSAN", "부산"}, {"DAEGU", "대구"}, {"INCHEON", "인천"},
+                {"GWANGJU", "광주"}, {"DAEJEON", "대전"}, {"ULSAN", "울산"}, {"SEJONG", "세종"},
+                {"GYEONGGI", "경기"}, {"GANGWON", "강원"}, {"CHUNGBUK", "충북", "충청북도"},
+                {"CHUNGNAM", "충남", "충청남도"}, {"JEONBUK", "전북", "전라북도"},
+                {"JEONNAM", "전남", "전라남도"}, {"GYEONGBUK", "경북", "경상북도"},
+                {"GYEONGNAM", "경남", "경상남도"}, {"JEJU", "제주"}
+        };
+        for (var aliases : labels) {
+            if (normalized.equals(aliases[0]) || java.util.Arrays.stream(aliases).skip(1).anyMatch(normalized::contains))
+                result.add(aliases[0]);
+        }
+        // '경기 광주'의 광주시는 광주광역시와 구분합니다.
+        if (result.contains("GYEONGGI") && !normalized.contains("광주광역시")) result.remove("GWANGJU");
+        return result;
     }
 
     // 문장 일부를 검색해 자격을 단정하지 않습니다. 명확한 전체 문자열만 지원합니다.

@@ -5,6 +5,7 @@ import com.savanna.backend.domain.TeamMember;
 import com.savanna.backend.domain.User;
 import com.savanna.backend.dto.request.TeamCreateRequestDto;
 import com.savanna.backend.dto.response.TeamCreateResponseDto;
+import com.savanna.backend.dto.response.TeamLeaveResponseDto;
 import com.savanna.backend.enums.TeamRole;
 import com.savanna.backend.repository.TeamMemberRepository;
 import com.savanna.backend.repository.TeamRepository;
@@ -17,6 +18,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.savanna.backend.dto.response.TeamListResponseDto;
 import com.savanna.backend.dto.response.TeamDetailResponseDto;
 import com.savanna.backend.dto.request.TeamUpdateRequestDto;
+import com.savanna.backend.repository.ProposalRecipientRepository;
+import com.savanna.backend.enums.ProposalRecipientStatus;
 
 import java.util.List;
 
@@ -29,6 +32,9 @@ public class TeamService {
     private final UserRepository userRepository;
     private final TeamPhotoService teamPhotos;
     private final TeamMembershipPolicy membershipPolicy;
+    private final TeamInvitationService invitations;
+    private final TeamDeletionService deletion;
+    private final ProposalRecipientRepository proposalRecipientRepository;
 
     @Transactional
     public TeamCreateResponseDto createTeam(
@@ -71,10 +77,13 @@ public class TeamService {
 
         teamMemberRepository.save(teamMember);
 
+        // REQUIRED propagation joins this transaction: a failed invitation rolls back the team and leader too.
+        var invitation = invitations.createInvitation(userId,team.getTeamId());
+
         // 5. 결과 반환
         return TeamCreateResponseDto.from(
                 team,
-                TeamRole.LEADER
+                TeamRole.LEADER,teamPhotos.url(team),invitation.inviteUrl()
         );
     }
 
@@ -187,5 +196,43 @@ public class TeamService {
             return null;
         }
         return value.trim();
+    }
+
+    @Transactional
+    public com.savanna.backend.dto.response.TeamLeaveResponseDto leaveTeam(Long userId,Long teamId) {
+        membershipPolicy.lockUser(userId);
+        if(teamId==null||teamId<=0)throw new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.INVALID_REQUEST);
+        teamRepository.findByIdForUpdate(teamId)
+                .orElseThrow(()->new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.RESOURCE_NOT_FOUND));
+        var member=teamMemberRepository.findByUser_UserIdAndTeam_TeamId(userId,teamId)
+                .orElseThrow(()->new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.FORBIDDEN));
+        var remaining=teamMemberRepository.findAllByTeam_TeamId(teamId).stream()
+                .filter(m -> !m.getUser().getUserId().equals(userId))
+                .sorted(java.util.Comparator.comparing(TeamMember::getJoinedAt).thenComparing(TeamMember::getTeamMemberId)).toList();
+        if(remaining.isEmpty()) {
+            deletion.deleteTeam(teamId);
+            return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId,userId,null,true);
+        }
+        Long newLeader=null;
+        if(member.getRole()==TeamRole.LEADER) {
+            var successor=remaining.get(0);successor.promoteToLeader();newLeader=successor.getUser().getUserId();
+        }
+        // 팀 탈퇴 시 해당 팀에서 받은 미응답 제안 정리
+        proposalRecipientRepository.deletePendingByUserAndTeam(
+                userId,
+                teamId,
+                ProposalRecipientStatus.PENDING
+        );
+
+        // 응답 이력은 보존하고 응답 권한 무효화
+        proposalRecipientRepository
+                .findUnrevokedByUserAndTeam(userId, teamId)
+                .forEach(recipient -> recipient.revoke());
+
+        // 팀 소속 삭제
+        teamMemberRepository.delete(member);
+        teamMemberRepository.flush();
+
+        return new TeamLeaveResponseDto(teamId, userId, newLeader, false);
     }
 }

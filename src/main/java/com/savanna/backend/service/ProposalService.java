@@ -22,6 +22,7 @@ import java.util.HashSet;
 @Service
 @RequiredArgsConstructor
 public class ProposalService {
+    private static final int MAX_PROPOSALS_PER_TEAM = 6;
 
     private final AnnouncementRepository announcementRepository;
     private final ExpeditionRepository expeditionRepository;
@@ -103,6 +104,12 @@ public class ProposalService {
                 || announcement.getDeadline() == null
                 || announcement.getDeadline().isBefore(now.toLocalDate())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        // requireTeam()에서 획득한 팀 쓰기 잠금 안에서 집계·생성합니다.
+        // 마감·제출 여부와 관계없이 해당 팀의 전체 제안을 집계합니다.
+        if (proposalRepository.countByExpedition_TeamId(context.teamId()) >= MAX_PROPOSALS_PER_TEAM) {
+            throw new BusinessException(ErrorCode.PROPOSAL_LIMIT_EXCEEDED);
         }
 
         // 6. 수신자 조회: 중복 제거·제안자 제외

@@ -30,6 +30,7 @@ public class ProposalController {
                     + "같은 팀이 같은 공고에 이미 제안했다면 중복 요청으로 거절합니다."
                     + " 팀원이나 메시지를 바꿔도 같은 팀·공고 조합이면 409이며 새 원정·제안·수신 기록을 만들지 않습니다."
                     + " 다른 팀은 같은 공고에 별도로 제안할 수 있습니다."
+                    + " 마감·제출 여부와 관계없이 팀당 전체 제안은 최대 6개이며, 초과하면 PROPOSAL_LIMIT_EXCEEDED(409)를 반환합니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode="201",description="최초 제안 전송 성공",content=@Content(mediaType="application/json",schema=@Schema(implementation=ProposalCreateResponse.class))),
@@ -37,7 +38,7 @@ public class ProposalController {
             @ApiResponse(responseCode="401",description="미인증",content=@Content),
             @ApiResponse(responseCode="403",description="해당 팀 소속이 아님",content=@Content(mediaType="application/json",schema=@Schema(implementation=ErrorResponse.class))),
             @ApiResponse(responseCode="404",description="공고 또는 팀 없음, 비공개·제외 공고",content=@Content(mediaType="application/json",schema=@Schema(implementation=ErrorResponse.class))),
-            @ApiResponse(responseCode="409",description="같은 팀이 같은 공고에 이미 제안했거나 수신자 정보가 변경됨",content=@Content(
+            @ApiResponse(responseCode="409",description="팀당 제안 6개 초과, 같은 팀·공고 중복 또는 수신자 정보 변경",content=@Content(
                     mediaType="application/json",schema=@Schema(implementation=ErrorResponse.class),examples=@ExampleObject(name="중복 제안",value="{\"code\":\"CONFLICT\",\"message\":\"현재 상태에서 요청을 처리할 수 없습니다.\",\"errors\":[]}")))
     })
     @PostMapping

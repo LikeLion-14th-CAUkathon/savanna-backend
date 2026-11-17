@@ -61,6 +61,9 @@ tasks.register('importContestKorea', JavaExec) {
 	if (providers.gradleProperty('contestKoreaAudience').isPresent()) {
 		args "--contest-korea.import.audience-only=${providers.gradleProperty('contestKoreaAudience').get()}"
 	}
+	if (providers.gradleProperty('contestKoreaCurate').isPresent()) {
+		args "--contest-korea.import.curate-only=${providers.gradleProperty('contestKoreaCurate').get()}"
+	}
 	if (providers.gradleProperty('contestKoreaCsv').isPresent()) {
 		args "--contest-korea.import.csv=${providers.gradleProperty('contestKoreaCsv').get()}"
 	}

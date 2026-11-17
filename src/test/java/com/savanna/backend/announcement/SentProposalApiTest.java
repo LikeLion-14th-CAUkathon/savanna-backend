@@ -46,6 +46,12 @@ class SentProposalApiTest {
         return user;
     }
 
+    User teamUser(String suffix) {
+        var user = user(suffix);
+        em.persist(new TeamMember(user, team, TeamRole.MEMBER));
+        return user;
+    }
+
     String bearer(User user) { return "Bearer " + tokens.createAccessToken(user.getUserId()); }
     String path(Proposal proposal) { return "/api/v1/proposals/" + proposal.getProposalId() + "/recipients"; }
 
@@ -104,8 +110,8 @@ class SentProposalApiTest {
     @Test void returnsCountsAndRecipientDetailsOnlyForSelectedProposal() throws Exception {
         var proposal = proposal(sender);
         var joined = recipient(proposal, other, ProposalRecipientStatus.JOINED);
-        recipient(proposal, user("declined"), ProposalRecipientStatus.DECLINED);
-        recipient(proposal, user("pending"), ProposalRecipientStatus.PENDING);
+        recipient(proposal, teamUser("declined"), ProposalRecipientStatus.DECLINED);
+        recipient(proposal, teamUser("pending"), ProposalRecipientStatus.PENDING);
         recipient(proposal(sender), other, ProposalRecipientStatus.JOINED);
         em.clear();
         mvc.perform(get(path(proposal)).header("Authorization", bearer(sender)))
@@ -151,8 +157,8 @@ class SentProposalApiTest {
     @Test void expeditionTeamMemberCanReadOtherSendersProposalAndOnlyItsResponses() throws Exception {
         var proposal = proposal(sender);
         var joined = recipient(proposal, other, ProposalRecipientStatus.JOINED);
-        recipient(proposal, user("expedition-declined"), ProposalRecipientStatus.DECLINED);
-        recipient(proposal, user("expedition-pending"), ProposalRecipientStatus.PENDING);
+        recipient(proposal, teamUser("expedition-declined"), ProposalRecipientStatus.DECLINED);
+        recipient(proposal, teamUser("expedition-pending"), ProposalRecipientStatus.PENDING);
         recipient(proposal(sender), other, ProposalRecipientStatus.JOINED);
         // 마감·비공개·제출 완료 여부와 관계없이 기존 원정의 이력을 제공합니다.
         proposal.getExpedition().getAnnouncement().changeVisibility(false);

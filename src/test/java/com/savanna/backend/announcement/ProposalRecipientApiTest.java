@@ -25,6 +25,9 @@ class ProposalRecipientApiTest {
     @Autowired JwtTokenProvider tokens;
     @Autowired EntityManager em;
     @Autowired TeamMemberRepository members;
+    @Autowired com.savanna.backend.service.TeamService teamService;
+    @Autowired com.savanna.backend.service.TeamInvitationService invitations;
+    @Autowired ProposalRecipientRepository recipients;
     MockMvc mvc;
     User sender, receiver, outsider;
     Team team;
@@ -68,20 +71,36 @@ class ProposalRecipientApiTest {
         return "/api/v1/proposal-recipients/" + recipient.getProposalRecipientId() + "/response";
     }
 
-    @Test void listsOnlyOwnProposalsInLatestOrderAndCountsOnlyPending() throws Exception {
+    @Test
+    void listsOnlyOwnProposalsInLatestOrderAndCountsOnlyPending() throws Exception {
+
+        // 현재 팀에 소속된 사용자만 받은 제안을 조회할 수 있도록 팀원 등록
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        em.flush();
+
         var first = invitation(receiver);
         first.respond(ProposalRecipientStatus.DECLINED);
+
         var latest = invitation(receiver);
         invitation(outsider);
         em.flush();
-        mvc.perform(get("/api/v1/proposal-recipients/received").header("Authorization", bearer(receiver)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].proposalRecipientId").value(latest.getProposalRecipientId()))
-                .andExpect(jsonPath("$[0].announcementTitle").value("제안 공고 2"))
+
+        mvc.perform(get("/api/v1/proposal-recipients/received")
+                        .header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].proposalRecipientId")
+                        .value(latest.getProposalRecipientId()))
+                .andExpect(jsonPath("$[0].announcementTitle")
+                        .value("제안 공고 2"))
                 .andExpect(jsonPath("$[0].senderName").value("sender"))
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
-        mvc.perform(get("/api/v1/proposal-recipients/pending-count").header("Authorization", bearer(receiver)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.pendingCount").value(1));
+
+        mvc.perform(get("/api/v1/proposal-recipients/pending-count")
+                        .header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pendingCount").value(1));
+
         assertNull(latest.getReadAt());
     }
 
@@ -108,6 +127,156 @@ class ProposalRecipientApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.responseVersion").value(2));
         assertEquals(ProposalRecipientStatus.DECLINED, em.find(ProposalRecipient.class, recipient.getProposalRecipientId()).getStatus());
         assertTrue(members.existsByUser_UserIdAndTeam_TeamId(receiver.getUserId(), team.getTeamId()));
+    }
+
+    @Test void leavingDeletesPendingAndPreservesRevokedResponseHistory() {
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        var pending = invitation(receiver);
+        var declined = invitation(receiver);
+        declined.respond(ProposalRecipientStatus.DECLINED);
+        var joined = invitation(receiver);
+        joined.respond(ProposalRecipientStatus.JOINED);
+        em.flush();
+
+        teamService.leaveTeam(receiver.getUserId(), team.getTeamId());
+        em.clear();
+
+        assertNull(em.find(ProposalRecipient.class, pending.getProposalRecipientId()));
+        for (var original : new ProposalRecipient[]{declined, joined}) {
+            var saved = em.find(ProposalRecipient.class, original.getProposalRecipientId());
+            assertTrue(saved.isRevoked());
+            assertEquals(original.getStatus(), saved.getStatus());
+            assertEquals(original.getRespondedAt(), saved.getRespondedAt());
+            assertEquals(original.getResponseVersion(), saved.getResponseVersion());
+        }
+        assertFalse(members.existsByUser_UserIdAndTeam_TeamId(receiver.getUserId(), team.getTeamId()));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = ProposalRecipientStatus.class, names = {"JOINED", "DECLINED"})
+    void formerMemberCannotReuseResponse(ProposalRecipientStatus requestedStatus) throws Exception {
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        var recipient = invitation(receiver);
+        recipient.respond(ProposalRecipientStatus.DECLINED);
+        em.flush();
+        teamService.leaveTeam(receiver.getUserId(), team.getTeamId());
+        em.clear();
+
+        mvc.perform(patch(responsePath(recipient)).header("Authorization", bearer(receiver))
+                        .contentType("application/json")
+                        .content("{\"status\":\"" + requestedStatus.name() + "\"}"))
+                .andExpect(status().isForbidden());
+
+        assertFalse(members.existsByUser_UserIdAndTeam_TeamId(receiver.getUserId(), team.getTeamId()));
+        var saved = em.find(ProposalRecipient.class, recipient.getProposalRecipientId());
+        assertEquals(ProposalRecipientStatus.DECLINED, saved.getStatus());
+        assertEquals(1, saved.getResponseVersion());
+    }
+
+    @Test void leavingAndMovingTeamsHidesOldReceivedProposalsAndNotifications() throws Exception {
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        var oldResponse = invitation(receiver);
+        oldResponse.respond(ProposalRecipientStatus.DECLINED);
+        invitation(receiver);
+        em.flush();
+
+        mvc.perform(get("/api/v1/proposals/notifications").header("Authorization", bearer(sender)))
+                .andExpect(jsonPath("$.unreadResponseCount").value(1));
+        teamService.leaveTeam(receiver.getUserId(), team.getTeamId());
+        em.clear();
+
+        mvc.perform(get("/api/v1/proposal-recipients/received").header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        mvc.perform(get("/api/v1/proposal-recipients/pending-count").header("Authorization", bearer(receiver)))
+                .andExpect(jsonPath("$.pendingCount").value(0));
+        mvc.perform(get("/api/v1/proposals/notifications").header("Authorization", bearer(receiver)))
+                .andExpect(jsonPath("$.hasUnread").value(false));
+        mvc.perform(get("/api/v1/proposals/notifications").header("Authorization", bearer(sender)))
+                .andExpect(jsonPath("$.unreadResponseCount").value(0));
+        mvc.perform(patch("/api/v1/proposal-recipients/{id}/read", oldResponse.getProposalRecipientId())
+                        .header("Authorization", bearer(receiver)))
+                .andExpect(status().isForbidden());
+
+        var newTeam = new Team("새 팀", "프로젝트", "소개", null, null, null);
+        em.persist(newTeam);
+        sender = em.find(User.class, outsider.getUserId());
+        em.persist(new TeamMember(sender, newTeam, TeamRole.LEADER));
+        em.persist(new TeamMember(em.find(User.class, receiver.getUserId()), newTeam, TeamRole.MEMBER));
+        team = newTeam;
+        var current = invitation(em.find(User.class, receiver.getUserId()));
+
+        mvc.perform(get("/api/v1/proposal-recipients/received").header("Authorization", bearer(receiver)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].proposalRecipientId").value(current.getProposalRecipientId()));
+        mvc.perform(get("/api/v1/proposal-recipients/pending-count").header("Authorization", bearer(receiver)))
+                .andExpect(jsonPath("$.pendingCount").value(1));
+        mvc.perform(get("/api/v1/proposals/notifications").header("Authorization", bearer(receiver)))
+                .andExpect(jsonPath("$.unreadProposalCount").value(1));
+    }
+
+    @Test void formerSenderCannotSeeOldSentProposalsOrResponseNotifications() throws Exception {
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        var recipient = invitation(receiver);
+        recipient.respond(ProposalRecipientStatus.JOINED);
+        em.flush();
+        mvc.perform(get("/api/v1/proposals/sent").header("Authorization", bearer(sender)))
+                .andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/v1/proposals/notifications").header("Authorization", bearer(sender)))
+                .andExpect(jsonPath("$.unreadResponseCount").value(1));
+
+        teamService.leaveTeam(sender.getUserId(), team.getTeamId());
+        em.clear();
+        mvc.perform(get("/api/v1/proposals/sent").header("Authorization", bearer(sender)))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        mvc.perform(get("/api/v1/proposals/notifications").header("Authorization", bearer(sender)))
+                .andExpect(jsonPath("$.unreadResponseCount").value(0));
+    }
+
+    @Test void invitationRejoinKeepsRevokedHistoryHiddenAndRegistersDeletedPendingAgain() throws Exception {
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        var history = invitation(receiver);
+        history.respond(ProposalRecipientStatus.JOINED);
+        var pending = invitation(receiver);
+        var proposalId = pending.getProposal().getProposalId();
+        em.flush();
+        var link = invitations.createInvitation(sender.getUserId(), team.getTeamId());
+        teamService.leaveTeam(receiver.getUserId(), team.getTeamId());
+        invitations.acceptInvitation(receiver.getUserId(), link.token());
+        em.flush();
+        em.clear();
+
+        assertTrue(em.find(ProposalRecipient.class, history.getProposalRecipientId()).isRevoked());
+        var active = recipients.findReceivedProposals(receiver.getUserId());
+        assertEquals(1, active.size());
+        assertEquals(proposalId, active.get(0).getProposal().getProposalId());
+        assertNotEquals(pending.getProposalRecipientId(), active.get(0).getProposalRecipientId());
+        assertEquals(ProposalRecipientStatus.PENDING, active.get(0).getStatus());
+        assertEquals(0, recipients.countUnreadResponses(sender.getUserId()));
+        assertTrue(recipients.countDistinctUsersByTeamAndStatus(team.getTeamId(), ProposalRecipientStatus.JOINED).isEmpty());
+        assertEquals(0, recipients.countJoinedForExpedition(history.getProposal().getExpedition().getExpeditionId(), team.getTeamId()));
+        assertTrue(recipients.findAllByProposal_ProposalIdOrderByProposalRecipientIdAsc(history.getProposal().getProposalId()).isEmpty());
+        mvc.perform(patch(responsePath(history)).header("Authorization", bearer(receiver))
+                        .contentType("application/json").content("{\"status\":\"JOINED\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test void formerSenderCannotDirectlyReadOldResponseDetailsOrAcknowledgeThem() throws Exception {
+        em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
+        var recipient = invitation(receiver);
+        recipient.respond(ProposalRecipientStatus.JOINED);
+        em.flush();
+        Long proposalId = recipient.getProposal().getProposalId();
+        teamService.leaveTeam(sender.getUserId(), team.getTeamId());
+        em.clear();
+
+        mvc.perform(get("/api/v1/proposals/{id}/recipients", proposalId).header("Authorization", bearer(sender)))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/v1/proposals/{id}/recipients/read", proposalId)
+                        .header("Authorization", bearer(sender)).contentType("application/json")
+                        .content("{\"responses\":[{\"proposalRecipientId\":" + recipient.getProposalRecipientId()
+                                + ",\"responseVersion\":1}]}"))
+                .andExpect(status().isForbidden());
+        assertEquals(0, em.find(ProposalRecipient.class, recipient.getProposalRecipientId()).getResponseReadVersion());
     }
 
     @Test void existingLeaderKeepsRoleWhenJoiningAndDeclineDoesNotRemoveMembership() throws Exception {
