@@ -26,7 +26,7 @@ public class ExpeditionController {
         return expeditionService.getProposals(id, principal);
     }
 
-    @Operation(summary = "준비 정보 조회")
+    @Operation(summary = "준비 정보 조회", description = "joinedCount는 현재 팀 소속 JOINED 수신자의 고유 인원입니다(발신자 제외). memberCountNotice는 확인된 최소 인원 미달 시 '현재 N명이 합류했어요. 최소 M명이 필요해요.', 최대 인원 초과 시 '현재 N명이 합류했어요. 최대 M명까지 참가할 수 있어요.'를 반환합니다. 범위 내이거나 해당 제한이 미확인이면 null입니다.")
     @GetMapping("/{expeditionId}")
     public ExpeditionResponse getExpedition(@PathVariable("expeditionId") Long id, Principal principal) {
         return expeditionService.getExpedition(id, principal);

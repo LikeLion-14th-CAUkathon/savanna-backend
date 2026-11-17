@@ -22,6 +22,7 @@ public class TeamAccessService implements ExpeditionTeamAccess, EligibilityTeamR
     private final TeamMemberRepository members;
     private final TeamRepository teams;
     private final UserRepository users;
+    private final com.savanna.backend.repository.UserRegionRepository userRegions;
 
     private Long authenticatedUserId(Principal principal) {
         // JWT 필터가 검증한 Long principal만 사용합니다. getName()은 사용자 ID로 파싱하지 않습니다.
@@ -65,8 +66,14 @@ public class TeamAccessService implements ExpeditionTeamAccess, EligibilityTeamR
             teamId = selected.get();
         }
         requireMembership(userId, teamId);
-        return Optional.of(new TeamSnapshot(teamId, members.findAllByTeam_TeamId(teamId).stream()
-                .map(member -> member.getUser().getEnrollmentStatus()).toList()));
+        return Optional.of(snapshot(teamId, members.findAllByTeam_TeamId(teamId)));
+    }
+
+    TeamSnapshot snapshot(Long teamId, List<TeamMember> memberList) {
+        return new TeamSnapshot(teamId,
+                memberList.stream().map(m -> m.getUser().getEnrollmentStatus()).toList(),
+                memberList.stream().map(m -> userRegions.findAllByUser_UserId(m.getUser().getUserId())
+                        .stream().map(com.savanna.backend.domain.UserRegion::getRegionCode).sorted().toList()).toList());
     }
 
     @Override

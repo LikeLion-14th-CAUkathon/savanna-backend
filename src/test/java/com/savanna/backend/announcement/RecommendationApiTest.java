@@ -83,6 +83,26 @@ class RecommendationApiTest {
         mvc.perform(post(path() + "/refresh").header("Authorization", bearer(member))).andExpect(status().isOk());
     }
 
+    @Test void individualOnlyNoticeRemainsInListAndRecommendationsForLargerTeam() throws Exception {
+        var solo = Announcement.builder().title("개인만 참가")
+                .field(AnnouncementField.IDEA_ARCHITECTURE_STARTUP)
+                .applicationStartsAt(today.minusDays(1).atStartOfDay()).deadline(today.plusDays(10))
+                .minMembers(1).maxMembers(1).enrollmentRequirement("누구나").build();
+        em.persist(solo);
+        var second = new User("second-solo@example.com", "second-solo");
+        second.updateProfile("두번째", "대학", EnrollmentStatus.ENROLLED);
+        em.persist(second);
+        em.persist(new TeamMember(second, team, TeamRole.MEMBER));
+        em.flush();
+        mvc.perform(get("/api/v1/announcements").param("keyword", "개인만 참가").header("Authorization", bearer(member)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].title").value("개인만 참가"));
+        refresh();
+        assertTrue(ai.seen.stream().anyMatch(c -> c.announcementId().equals(solo.getAnnouncementId())));
+        mvc.perform(get(path()).header("Authorization", bearer(member)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].title").value("개인만 참가"))
+                .andExpect(jsonPath("$[0].eligibility.status").value("SATISFIED"));
+    }
+
     @Test void generatesPersistsAndReturnsTopFiveAndGetNeverCallsAi() throws Exception {
         for (int i = 0; i < 7; i++) announcement("공고 " + i, i, "재학생");
         mvc.perform(post(path() + "/refresh").header("Authorization", bearer(member)))

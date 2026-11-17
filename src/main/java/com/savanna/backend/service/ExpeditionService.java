@@ -51,7 +51,7 @@ public class ExpeditionService {
     public ExpeditionResponse getExpedition(Long id, Principal principal) {
         var e = find(id, false);
         authorize(principal, e.getTeamId(), false);
-        return ExpeditionResponse.from(e);
+        return response(e);
     }
 
     public List<ExpeditionProposalResponse> getProposals(Long id, Principal principal) {
@@ -75,7 +75,7 @@ public class ExpeditionService {
             e.changeStage(request.stage());
             historyRepository.save(new ExpeditionStageHistory(e, previous, e.getStage(), userId));
         }
-        return ExpeditionResponse.from(e);
+        return response(e);
     }
 
     @Transactional
@@ -88,7 +88,7 @@ public class ExpeditionService {
                 request.draftDate() == null ? e.getDraftDate() : request.draftDate(),
                 request.reviewDate() == null ? e.getReviewDate() : request.reviewDate(),
                 request.submitTargetDate() == null ? e.getSubmitTargetDate() : request.submitTargetDate());
-        return ExpeditionResponse.from(e);
+        return response(e);
     }
 
     public Page<ExpeditionStageHistoryResponse> getStageHistories(
@@ -99,6 +99,11 @@ public class ExpeditionService {
         return historyRepository.findByExpedition_ExpeditionId(id, PageRequest.of(page, size,
                 Sort.by(Sort.Order.desc("changedAt"), Sort.Order.desc("stageHistoryId"))))
                 .map(ExpeditionStageHistoryResponse::from);
+    }
+
+    private ExpeditionResponse response(Expedition e) {
+        long joined = recipientRepository.countJoinedForExpedition(e.getExpeditionId(), e.getTeamId());
+        return ExpeditionResponse.from(e, joined);
     }
 
     private Expedition find(Long id, boolean lock) {
