@@ -37,7 +37,9 @@ public class SentProposalService {
         if (proposalId == null || proposalId <= 0) throw new BusinessException(ErrorCode.INVALID_REQUEST);
         var proposal = proposals.findById(proposalId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        if (!proposal.getSender().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
+        if (proposal.getSender() == null || !proposal.getSender().getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
         if (!members.existsByUser_UserIdAndTeam_TeamId(userId, proposal.getExpedition().getTeamId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
@@ -63,7 +65,9 @@ public class SentProposalService {
         }
         var proposal = proposals.findById(proposalId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        if (!proposal.getSender().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
+        if (proposal.getSender() == null || !proposal.getSender().getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
         Long teamId = proposal.getExpedition().getTeamId();
         teams.findByIdForUpdate(teamId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));

@@ -18,11 +18,11 @@ public class Proposal {
     private Long proposalId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "expedition_id", nullable = false, updatable = false,unique= true)
+    @JoinColumn(name = "expedition_id", nullable = false, updatable = false, unique = true)
     private Expedition expedition;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "sender_id", nullable = false, updatable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "sender_id", nullable = true)
     private User sender;
 
     @Column(columnDefinition = "TEXT")
@@ -36,6 +36,10 @@ public class Proposal {
         this.expedition = expedition;
         this.sender = sender;
         this.message = message;
+    }
+
+    public void detachSender() {
+        this.sender = null;
     }
 
     @PrePersist

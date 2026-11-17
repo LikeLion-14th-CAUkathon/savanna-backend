@@ -114,7 +114,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
               and r.proposal.expedition.teamId = :teamId
               and r.status = com.savanna.backend.enums.ProposalRecipientStatus.JOINED
               and r.revokedAt is null
-              and r.user.userId <> r.proposal.sender.userId
+              and (r.proposal.sender is null or r.user.userId <> r.proposal.sender.userId)
               and exists (select m from TeamMember m where m.team.teamId = :teamId and m.user.userId = r.user.userId)
             """)
     long countJoinedForExpedition(@Param("expeditionId") Long expeditionId, @Param("teamId") Long teamId);
@@ -125,7 +125,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
             from ProposalRecipient r
             where r.proposal.expedition.teamId = :teamId and r.status = :status
               and r.revokedAt is null
-              and r.user.userId <> r.proposal.sender.userId
+              and (r.proposal.sender is null or r.user.userId <> r.proposal.sender.userId)
               and exists (select m from TeamMember m where m.team.teamId = :teamId and m.user.userId = r.user.userId)
             group by r.proposal.expedition.expeditionId
             """)
@@ -160,6 +160,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
             Long proposalId,
             Long userId
     );
+
     @Modifying(flushAutomatically = true)
     @Query("""
         delete from ProposalRecipient r
@@ -171,7 +172,6 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
                 where p.expedition.teamId = :teamId
         )
       """)
-
     int deletePendingByUserAndTeam(
             @Param("userId") Long userId,
             @Param("teamId") Long teamId,
@@ -201,21 +201,6 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
           )
         """)
     int deleteAllByUserAndTeam(
-            @Param("userId") Long userId,
-            @Param("teamId") Long teamId
-    );
-
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("""
-        delete from ProposalRecipient r
-        where r.proposal.proposalId in (
-            select p.proposalId
-            from Proposal p
-            where p.sender.userId = :userId
-              and p.expedition.teamId = :teamId
-        )
-        """)
-    int deleteAllByProposalSenderAndTeam(
             @Param("userId") Long userId,
             @Param("teamId") Long teamId
     );

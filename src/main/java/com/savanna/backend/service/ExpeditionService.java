@@ -4,26 +4,30 @@ import com.savanna.backend.domain.Expedition;
 import com.savanna.backend.domain.ExpeditionStageHistory;
 import com.savanna.backend.dto.request.ExpeditionScheduleRequest;
 import com.savanna.backend.dto.request.ExpeditionStageRequest;
+import com.savanna.backend.dto.response.ExpeditionProposalResponse;
 import com.savanna.backend.dto.response.ExpeditionResponse;
 import com.savanna.backend.dto.response.ExpeditionStageHistoryResponse;
+import com.savanna.backend.dto.response.TeamExpeditionResponse;
+import com.savanna.backend.enums.ProposalRecipientStatus;
 import com.savanna.backend.error.BusinessException;
 import com.savanna.backend.error.ErrorCode;
 import com.savanna.backend.repository.ExpeditionRepository;
 import com.savanna.backend.repository.ExpeditionStageHistoryRepository;
+import com.savanna.backend.repository.ProposalRecipientRepository;
+import com.savanna.backend.repository.ProposalRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import com.savanna.backend.dto.response.TeamExpeditionResponse;
-import com.savanna.backend.enums.ProposalRecipientStatus;
-import com.savanna.backend.repository.ProposalRecipientRepository;
-import com.savanna.backend.repository.ProposalRepository;
-import com.savanna.backend.dto.response.ExpeditionProposalResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +38,7 @@ public class ExpeditionService {
     private final ProposalRecipientRepository recipientRepository;
     private final ExpeditionStageHistoryRepository historyRepository;
     private final ObjectProvider<ExpeditionTeamAccess> teamAccess;
+    private final EntityManager em;
 
     public List<TeamExpeditionResponse> getTeamExpeditions(Long teamId, Principal principal) {
         if (teamId == null || teamId <= 0) invalid();
@@ -48,6 +53,7 @@ public class ExpeditionService {
         return expeditions.stream().map(e -> TeamExpeditionResponse.from(e,
                 joined.getOrDefault(e.getExpeditionId(), 0L))).toList();
     }
+
     public ExpeditionResponse getExpedition(Long id, Principal principal) {
         var e = find(id, false);
         authorize(principal, e.getTeamId(), false);
@@ -97,8 +103,28 @@ public class ExpeditionService {
         var e = find(id, false);
         authorize(principal, e.getTeamId(), false);
         return historyRepository.findByExpedition_ExpeditionId(id, PageRequest.of(page, size,
-                Sort.by(Sort.Order.desc("changedAt"), Sort.Order.desc("stageHistoryId"))))
+                        Sort.by(Sort.Order.desc("changedAt"), Sort.Order.desc("stageHistoryId"))))
                 .map(ExpeditionStageHistoryResponse::from);
+    }
+
+    @Transactional
+    public void deleteExpedition(Long id, Principal principal) {
+        var e = find(id, true);
+        authorize(principal, e.getTeamId(), true);
+        Long expeditionId = e.getExpeditionId();
+
+        em.flush();
+        em.createQuery("delete from ProposalRecipient r where r.proposal.proposalId in (select p.proposalId from Proposal p where p.expedition.expeditionId = :id)")
+                .setParameter("id", expeditionId).executeUpdate();
+        em.createQuery("delete from Proposal p where p.expedition.expeditionId = :id")
+                .setParameter("id", expeditionId).executeUpdate();
+        for (String entity : new String[]{"ExpeditionTask", "ExpeditionChecklist", "ExpeditionStageHistory"}) {
+            em.createQuery("delete from " + entity + " c where c.expedition.expeditionId = :id")
+                    .setParameter("id", expeditionId).executeUpdate();
+        }
+        em.createQuery("delete from Expedition e where e.expeditionId = :id")
+                .setParameter("id", expeditionId).executeUpdate();
+        em.clear();
     }
 
     private ExpeditionResponse response(Expedition e) {
