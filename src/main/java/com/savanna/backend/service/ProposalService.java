@@ -103,8 +103,8 @@ public class ProposalService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
 
-        // requireTeam()에서 획득한 팀 쓰기 잠금 안에서 집계·생성합니다.
-        // 탈퇴한 팀원의 제안이 삭제되어도 오아시스에 남은 원정(Expedition) 기준으로 최대 6개를 제한합니다.
+        // requireTeam()에서 획득한 팀 쓰기 잠금 안에서 집계·생성
+        // 탈퇴한 팀원의 제안 삭제 여부와 관계없이 오아시스에 남은 원정(Expedition) 기준 최대 6개 제한
         if (expeditionRepository.countByTeamId(context.teamId()) >= MAX_PROPOSALS_PER_TEAM) {
             throw new BusinessException(ErrorCode.PROPOSAL_LIMIT_EXCEEDED);
         }

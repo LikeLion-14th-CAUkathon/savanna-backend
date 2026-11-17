@@ -161,7 +161,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
             Long userId
     );
 
-    // 이전 탈퇴 정책으로 남은 무효 기록만 정리합니다. 유효한 수신 기록은 유지합니다.
+    // 이전 탈퇴 정책의 무효 기록만 정리하고 유효한 수신 기록은 유지
     @Modifying(flushAutomatically = true)
     @Query("""
         delete from ProposalRecipient r
@@ -172,36 +172,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
               where p.expedition.teamId = :teamId
           )
         """)
-    int deleteRevokedByUserAndTeam(@Param("userId") Long userId, @Param("teamId") Long teamId);
-
-    @Modifying(flushAutomatically = true)
-    @Query("""
-        delete from ProposalRecipient r
-        where r.user.userId = :userId
-            and r.status = :status
-            and r.proposal.proposalId in (
-                select p.proposalId
-                from Proposal p
-                where p.expedition.teamId = :teamId
-        )
-      """)
-    int deletePendingByUserAndTeam(
-            @Param("userId") Long userId,
-            @Param("teamId") Long teamId,
-            @Param("status") ProposalRecipientStatus status
-    );
-
-    @Query("""
-        select r
-        from ProposalRecipient r
-        where r.user.userId = :userId
-          and r.proposal.expedition.teamId = :teamId
-          and r.revokedAt is null
-        """)
-    List<ProposalRecipient> findUnrevokedByUserAndTeam(
-            @Param("userId") Long userId,
-            @Param("teamId") Long teamId
-    );
+    void deleteRevokedByUserAndTeam(@Param("userId") Long userId, @Param("teamId") Long teamId);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
@@ -213,7 +184,7 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
               where p.expedition.teamId = :teamId
           )
         """)
-    int deleteAllByUserAndTeam(
+    void deleteAllByUserAndTeam(
             @Param("userId") Long userId,
             @Param("teamId") Long teamId
     );

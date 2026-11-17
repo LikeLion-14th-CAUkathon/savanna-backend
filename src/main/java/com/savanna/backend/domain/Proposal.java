@@ -38,10 +38,6 @@ public class Proposal {
         this.message = message;
     }
 
-    public void detachSender() {
-        this.sender = null;
-    }
-
     @PrePersist
     private void onCreate() { createdAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")); }
 }

@@ -214,9 +214,7 @@ class ProposalRecipientApiTest {
         em.persist(new TeamMember(receiver, team, TeamRole.MEMBER));
         var history = invitation(receiver);
         history.respond(ProposalRecipientStatus.JOINED);
-        var pending = invitation(receiver);
-        var historyProposalId = history.getProposal().getProposalId();
-        var pendingProposalId = pending.getProposal().getProposalId();
+        invitation(receiver);
         em.flush();
 
         var link = invitations.createInvitation(sender.getUserId(), team.getTeamId());
