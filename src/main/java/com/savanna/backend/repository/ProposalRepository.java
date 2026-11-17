@@ -41,7 +41,7 @@ public interface ProposalRepository
     JOIN p.expedition e
     JOIN e.announcement a
     WHERE e.teamId = :teamId
-      AND a.deadline >= :today
+      AND (a.deadline IS NULL OR a.deadline >= :today)
       AND e.submissionCompletedAt IS NULL
     """)
     List<Proposal> findActiveProposalsByTeamId(
