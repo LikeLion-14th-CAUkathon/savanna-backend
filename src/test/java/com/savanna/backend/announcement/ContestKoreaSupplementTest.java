@@ -56,10 +56,11 @@ class ContestKoreaSupplementTest {
         var saved=repository.findBySourceProviderAndExternalId("CONTEST_KOREA","api-photo").orElseThrow();
         assertNull(saved.getField());assertEquals("UNSUPPORTED_API_CATEGORY",saved.getClassificationIssue());
     }
-    @Test void knownMaximumDoesNotMakeUnknownMinimumUnlimited(){
+    @Test void unknownMinimumDoesNotRestrictEligibilityWhenOtherConditionsAreSatisfied(){
         var announcement=com.savanna.backend.domain.Announcement.builder().title("부분 인원").deadline(LocalDate.now().plusDays(1)).maxMembers(5).enrollmentRequirement("누구나").build();
         var response=new com.savanna.backend.service.AnnouncementEligibilityEvaluator().evaluate(announcement,1L,
                 new com.savanna.backend.service.EligibilityTeamReader.TeamSnapshot(1L,List.of(com.savanna.backend.enums.EnrollmentStatus.ENROLLED)));
-        assertEquals(com.savanna.backend.enums.EligibilityStatus.TEAM_INFO_REQUIRED,response.status());
+        assertEquals(com.savanna.backend.enums.EligibilityStatus.SATISFIED,response.status());
+        assertTrue(response.conditions().stream().noneMatch(condition -> "MEMBER_COUNT".equals(condition.code())));
     }
 }

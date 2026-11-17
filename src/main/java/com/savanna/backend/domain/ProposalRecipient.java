@@ -38,6 +38,7 @@ public class ProposalRecipient {
     @Column(nullable = false) @org.hibernate.annotations.ColumnDefault("0")
     private long responseReadVersion;
     private LocalDateTime responseReadAt;
+    private LocalDateTime revokedAt;
 
     public ProposalRecipient(Proposal proposal, User user) {
         if (proposal == null || user == null) throw new BusinessException(ErrorCode.INVALID_REQUEST);
@@ -84,4 +85,17 @@ public class ProposalRecipient {
             );
         }
     }
+
+    public void revoke() {
+        if (this.revokedAt == null) {
+            this.revokedAt = LocalDateTime.now(
+                    ZoneId.of("Asia/Seoul")
+            );
+        }
+    }
+
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+
 }

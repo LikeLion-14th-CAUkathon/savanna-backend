@@ -35,12 +35,15 @@ public class ProposalRecipientService {
 
     public ProposalPendingCountResponse pendingCount(Long userId) {
         requireUser(userId);
-        return new ProposalPendingCountResponse(recipients.countByUser_UserIdAndStatus(userId, ProposalRecipientStatus.PENDING));
+        return new ProposalPendingCountResponse(
+                recipients.countByUserAndCurrentTeamAndStatus(
+                        userId, ProposalRecipientStatus.PENDING)
+        );
     }
 
     public ProposalNotificationResponse notifications(Long userId) {
         requireUser(userId);
-        long unreadProposals = recipients.countByUser_UserIdAndReadAtIsNull(userId);
+        long unreadProposals = recipients.countUnreadProposalsInCurrentTeam(userId);
         long unreadResponses = recipients.countUnreadResponses(userId);
         return new ProposalNotificationResponse(unreadProposals > 0 || unreadResponses > 0, unreadProposals, unreadResponses);
     }
@@ -61,9 +64,12 @@ public class ProposalRecipientService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         em.refresh(recipient, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         if (!recipient.getUser().getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
-        if(status==ProposalRecipientStatus.JOINED) {
-            membershipPolicy.requireOnlyTeam(userId,recipient.getProposal().getExpedition().getTeamId());
-        }
+        if (recipient.isRevoked()) throw new BusinessException(ErrorCode.FORBIDDEN);
+        Long targetTeamId = recipient.getProposal()
+                .getExpedition()
+                .getTeamId();
+
+        membershipPolicy.requireOnlyTeam(userId, targetTeamId);
         // 응답 변경·읽음·버전 갱신을 같은 수신 기록 잠금 아래 처리합니다.
         boolean changed = recipient.respond(status);
         if (changed && status == ProposalRecipientStatus.JOINED) {
@@ -103,10 +109,19 @@ public class ProposalRecipientService {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
 
-        // 5. 읽음 처리
+        // 5. 현재 해당 팀에 소속되어 있는지 확인
+        Long targetTeamId = recipient.getProposal()
+                .getExpedition()
+                .getTeamId();
+
+        if (recipient.isRevoked() || !members.existsByUser_UserIdAndTeam_TeamId(userId, targetTeamId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        // 6. 읽음 처리
         recipient.markAsRead();
 
-        // 6. 읽음 처리된 제안 정보 반환
+        // 7. 결과 반환
         return ReceivedProposalResponse.from(recipient);
     }
 }
