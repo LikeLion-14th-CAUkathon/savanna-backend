@@ -210,14 +210,15 @@ public class TeamService {
             newLeader = successor.getUser().getUserId();
         }
 
-        // 1. 탈퇴자가 해당 팀에서 받은 모든 제안 응답 삭제
+        // 1. 탈퇴자 본인이 해당 팀에서 받은 모든 제안 응답만 삭제 (다른 팀원의 응답은 유지)
         proposalRecipientRepository.deleteAllByUserAndTeam(userId, teamId);
 
-        // 2. 탈퇴자가 해당 팀에 보낸 제안의 수신자 기록 삭제 (FK 방지)
-        proposalRecipientRepository.deleteAllByProposalSenderAndTeam(userId, teamId);
+        // 2. 탈퇴자가 해당 팀에 보낸 제안의 발신자만 null 처리 (제안 및 남은 팀원 응답·오아시스 공고 유지)
+        proposalRepository.detachSenderByUserAndTeam(userId, teamId);
 
-        // 3. 탈퇴자가 해당 팀에 보낸 제안 삭제 (Expedition은 유지되므로 오아시스 공고 보존)
-        proposalRepository.deleteAllBySenderAndTeam(userId, teamId);
+        // 3. 팀 소속 삭제
+        teamMemberRepository.delete(member);
+        teamMemberRepository.flush();
 
         // 4. 팀 소속 삭제
         teamMemberRepository.delete(member);

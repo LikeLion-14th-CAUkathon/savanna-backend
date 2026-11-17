@@ -13,9 +13,13 @@ public record ExpeditionProposalResponse(Long proposalId, Long senderId, String 
                                          Integer senderCharacterId) {
     public static ExpeditionProposalResponse from(Proposal proposal, List<ProposalRecipient> recipients) {
         var summary = ProposalRecipientsResponse.from(proposal.getProposalId(), recipients);
-        return new ExpeditionProposalResponse(proposal.getProposalId(), proposal.getSender().getUserId(),
-                proposal.getSender().getName(), proposal.getMessage(), proposal.getCreatedAt(),
+        var sender = proposal.getSender();
+        Long senderId = sender != null ? sender.getUserId() : null;
+        String senderName = sender != null ? sender.getName() : "탈퇴한 팀원";
+        Integer senderCharacterId = sender != null ? sender.getCharacterId() : null;
+        return new ExpeditionProposalResponse(proposal.getProposalId(), senderId,
+                senderName, proposal.getMessage(), proposal.getCreatedAt(),
                 summary.totalCount(), summary.joinedCount(), summary.declinedCount(), summary.pendingCount(),
-                summary.recipients(),proposal.getSender().getCharacterId());
+                summary.recipients(), senderCharacterId);
     }
 }

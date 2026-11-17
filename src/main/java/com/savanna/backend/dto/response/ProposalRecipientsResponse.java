@@ -21,7 +21,8 @@ public record ProposalRecipientsResponse(Long proposalId, long totalCount, long 
 
     public static ProposalRecipientsResponse from(Long proposalId, List<ProposalRecipient> records) {
         var recipients = records.stream()
-                .filter(r -> !r.getUser().getUserId().equals(r.getProposal().getSender().getUserId()))
+                .filter(r -> r.getProposal().getSender() == null
+                        || !r.getUser().getUserId().equals(r.getProposal().getSender().getUserId()))
                 .map(Recipient::from).toList();
         long joined = recipients.stream().filter(r -> r.status() == ProposalRecipientStatus.JOINED).count();
         long declined = recipients.stream().filter(r -> r.status() == ProposalRecipientStatus.DECLINED).count();

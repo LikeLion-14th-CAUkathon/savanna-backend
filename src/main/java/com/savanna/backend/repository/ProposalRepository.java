@@ -2,6 +2,7 @@ package com.savanna.backend.repository;
 
 import com.savanna.backend.domain.Proposal;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -48,13 +49,14 @@ public interface ProposalRepository
             @Param("today") LocalDate today
     );
 
-    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
-        delete from Proposal p
+        update Proposal p
+        set p.sender = null
         where p.sender.userId = :userId
           and p.expedition.teamId = :teamId
         """)
-    int deleteAllBySenderAndTeam(
+    int detachSenderByUserAndTeam(
             @Param("userId") Long userId,
             @Param("teamId") Long teamId
     );

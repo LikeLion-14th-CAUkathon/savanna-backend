@@ -27,6 +27,10 @@ public record ReceivedProposalResponse(
         var proposal = recipient.getProposal();
         var expedition = proposal.getExpedition();
         var announcement = expedition.getAnnouncement();
+        var sender = proposal.getSender();
+        String senderName = sender != null ? sender.getName() : "탈퇴한 팀원";
+        Long senderId = sender != null ? sender.getUserId() : null;
+        Integer senderCharacterId = sender != null ? sender.getCharacterId() : null;
 
         return new ReceivedProposalResponse(
                 recipient.getProposalRecipientId(),
@@ -34,13 +38,13 @@ public record ReceivedProposalResponse(
                 expedition.getExpeditionId(),
                 announcement.getAnnouncementId(),
                 announcement.getTitle(),
-                proposal.getSender().getName(),
+                senderName,          // <-- 수정됨
                 proposal.getMessage(),
                 recipient.getStatus(),
                 proposal.getCreatedAt(),
                 recipient.getReadAt(),
-                proposal.getSender().getUserId(),
-                proposal.getSender().getCharacterId()
+                senderId,            // <-- 수정됨
+                senderCharacterId    // <-- 수정됨
         );
     }
 }
