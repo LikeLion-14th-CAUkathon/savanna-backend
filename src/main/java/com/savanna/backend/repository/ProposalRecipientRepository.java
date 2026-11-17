@@ -35,6 +35,16 @@ public interface ProposalRecipientRepository extends JpaRepository<ProposalRecip
     }
 
     @Query("""
+            select count(distinct r.user.userId) from ProposalRecipient r
+            where r.proposal.expedition.expeditionId = :expeditionId
+              and r.proposal.expedition.teamId = :teamId
+              and r.status = com.savanna.backend.enums.ProposalRecipientStatus.JOINED
+              and r.user.userId <> r.proposal.sender.userId
+              and exists (select m from TeamMember m where m.team.teamId = :teamId and m.user.userId = r.user.userId)
+            """)
+    long countJoinedForExpedition(@Param("expeditionId") Long expeditionId, @Param("teamId") Long teamId);
+
+    @Query("""
             select r.proposal.expedition.expeditionId as expeditionId,
                    count(distinct r.user.userId) as joinedCount
             from ProposalRecipient r

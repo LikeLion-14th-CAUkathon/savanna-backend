@@ -73,7 +73,7 @@ class ContestKoreaImportTest {
         var response = evaluator.evaluate(saved, 1L, new TeamSnapshot(1L, List.of(EnrollmentStatus.ENROLLED)));
         assertEquals(EligibilityStatus.TEAM_INFO_REQUIRED, response.status());
         assertTrue(response.conditions().stream().anyMatch(c -> c.code().equals("ADDITIONAL_REQUIREMENTS") && c.message().contains("공고 상세 원문")));
-        assertTrue(response.conditions().stream().anyMatch(c -> c.code().equals("PARTICIPATION_REGION")));
+        assertFalse(response.conditions().stream().anyMatch(c -> c.code().equals("PARTICIPATION_REGION")));
         var withoutTeam = evaluator.evaluate(saved, null, null);
         assertTrue(withoutTeam.conditions().stream().anyMatch(c -> c.code().equals("ADDITIONAL_REQUIREMENTS")));
     }
