@@ -54,11 +54,14 @@ public interface ProposalRepository
         update Proposal p
         set p.sender = null
         where p.sender.userId = :userId
-          and p.expedition.teamId = :teamId
+          and p.expedition.expeditionId in (
+              select e.expeditionId
+              from Expedition e
+              where e.teamId = :teamId
+          )
         """)
     int detachSenderByUserAndTeam(
             @Param("userId") Long userId,
             @Param("teamId") Long teamId
     );
-
 }
