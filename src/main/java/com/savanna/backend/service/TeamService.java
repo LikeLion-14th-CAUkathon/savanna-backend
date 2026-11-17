@@ -4,9 +4,14 @@ import com.savanna.backend.domain.Team;
 import com.savanna.backend.domain.TeamMember;
 import com.savanna.backend.domain.User;
 import com.savanna.backend.dto.request.TeamCreateRequestDto;
+import com.savanna.backend.dto.request.TeamUpdateRequestDto;
 import com.savanna.backend.dto.response.TeamCreateResponseDto;
+import com.savanna.backend.dto.response.TeamDetailResponseDto;
 import com.savanna.backend.dto.response.TeamLeaveResponseDto;
+import com.savanna.backend.dto.response.TeamListResponseDto;
 import com.savanna.backend.enums.TeamRole;
+import com.savanna.backend.repository.ProposalRecipientRepository;
+import com.savanna.backend.repository.ProposalRepository;
 import com.savanna.backend.repository.TeamMemberRepository;
 import com.savanna.backend.repository.TeamRepository;
 import com.savanna.backend.repository.UserRepository;
@@ -15,11 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import com.savanna.backend.dto.response.TeamListResponseDto;
-import com.savanna.backend.dto.response.TeamDetailResponseDto;
-import com.savanna.backend.dto.request.TeamUpdateRequestDto;
-import com.savanna.backend.repository.ProposalRecipientRepository;
-import com.savanna.backend.enums.ProposalRecipientStatus;
 
 import java.util.List;
 
@@ -35,18 +35,16 @@ public class TeamService {
     private final TeamInvitationService invitations;
     private final TeamDeletionService deletion;
     private final ProposalRecipientRepository proposalRecipientRepository;
+    private final ProposalRepository proposalRepository;
 
     @Transactional
     public TeamCreateResponseDto createTeam(
             Long userId,
             TeamCreateRequestDto request
     ) {
-
-        // 1. 로그인 사용자 조회
         User user = membershipPolicy.lockUser(userId);
         membershipPolicy.requireNoTeam(userId);
 
-        // 2. 온보딩 완료 여부 확인
         if (!user.isOnboardingCompleted()) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
@@ -54,7 +52,6 @@ public class TeamService {
             );
         }
 
-        // 3. 팀 생성
         Team team = new Team(
                 request.name().trim(),
                 request.projectName().trim(),
@@ -64,11 +61,9 @@ public class TeamService {
                 normalizeOptional(request.stack())
         );
 
-
         teamPhotos.applyLegacyInput(team, request.photoUrl());
         teamRepository.save(team);
 
-        // 4. 생성자를 LEADER로 등록
         TeamMember teamMember = new TeamMember(
                 user,
                 team,
@@ -77,19 +72,18 @@ public class TeamService {
 
         teamMemberRepository.save(teamMember);
 
-        // REQUIRED propagation joins this transaction: a failed invitation rolls back the team and leader too.
-        var invitation = invitations.createInvitation(userId,team.getTeamId());
+        var invitation = invitations.createInvitation(userId, team.getTeamId());
 
-        // 5. 결과 반환
         return TeamCreateResponseDto.from(
                 team,
-                TeamRole.LEADER,teamPhotos.url(team),invitation.inviteUrl()
+                TeamRole.LEADER,
+                teamPhotos.url(team),
+                invitation.inviteUrl()
         );
     }
 
     @Transactional(readOnly = true)
     public List<TeamListResponseDto> getMyTeams(Long userId) {
-
         return teamMemberRepository
                 .findAllByUser_UserId(userId)
                 .stream()
@@ -102,7 +96,6 @@ public class TeamService {
             Long userId,
             Long teamId
     ) {
-        // 1. 팀 존재 여부 확인
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() ->
                         new ResponseStatusException(
@@ -111,7 +104,6 @@ public class TeamService {
                         )
                 );
 
-        // 2. 현재 사용자의 팀 소속 여부 확인
         boolean isMember = teamMemberRepository
                 .existsByUser_UserIdAndTeam_TeamId(
                         userId,
@@ -125,11 +117,9 @@ public class TeamService {
             );
         }
 
-        // 3. 팀원 목록 조회
         List<TeamMember> members = teamMemberRepository
                 .findAllByTeam_TeamId(teamId);
 
-        // 4. 상세 정보 반환
         return TeamDetailResponseDto.from(team, members, teamPhotos.url(team));
     }
 
@@ -139,7 +129,6 @@ public class TeamService {
             Long teamId,
             TeamUpdateRequestDto request
     ) {
-        // 1. 팀 조회
         Team team = teamRepository.findByIdForUpdate(teamId)
                 .orElseThrow(() ->
                         new ResponseStatusException(
@@ -148,7 +137,6 @@ public class TeamService {
                         )
                 );
 
-        // 2. 사용자 소속 및 역할 확인
         TeamMember member = teamMemberRepository
                 .findByUser_UserIdAndTeam_TeamId(userId, teamId)
                 .orElseThrow(() ->
@@ -165,7 +153,6 @@ public class TeamService {
             );
         }
 
-        // 3. 팀 정보 수정
         try {
             team.update(
                     request.name(),
@@ -175,7 +162,9 @@ public class TeamService {
                     request.presentationUrl(),
                     request.stack()
             );
-            if(request.photoUrl()!=null)teamPhotos.applyLegacyInput(team, request.photoUrl());
+            if (request.photoUrl() != null) {
+                teamPhotos.applyLegacyInput(team, request.photoUrl());
+            }
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -183,11 +172,9 @@ public class TeamService {
             );
         }
 
-        // 4. 수정된 팀원 목록 조회
         var members = teamMemberRepository
                 .findAllByTeam_TeamId(teamId);
 
-        // 5. 수정 결과 반환
         return TeamDetailResponseDto.from(team, members, teamPhotos.url(team));
     }
 
@@ -199,37 +186,40 @@ public class TeamService {
     }
 
     @Transactional
-    public com.savanna.backend.dto.response.TeamLeaveResponseDto leaveTeam(Long userId,Long teamId) {
+    public com.savanna.backend.dto.response.TeamLeaveResponseDto leaveTeam(Long userId, Long teamId) {
         membershipPolicy.lockUser(userId);
-        if(teamId==null||teamId<=0)throw new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.INVALID_REQUEST);
+        if (teamId == null || teamId <= 0) {
+            throw new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.INVALID_REQUEST);
+        }
         teamRepository.findByIdForUpdate(teamId)
-                .orElseThrow(()->new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.RESOURCE_NOT_FOUND));
-        var member=teamMemberRepository.findByUser_UserIdAndTeam_TeamId(userId,teamId)
-                .orElseThrow(()->new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.FORBIDDEN));
-        var remaining=teamMemberRepository.findAllByTeam_TeamId(teamId).stream()
+                .orElseThrow(() -> new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.RESOURCE_NOT_FOUND));
+        var member = teamMemberRepository.findByUser_UserIdAndTeam_TeamId(userId, teamId)
+                .orElseThrow(() -> new com.savanna.backend.error.BusinessException(com.savanna.backend.error.ErrorCode.FORBIDDEN));
+        var remaining = teamMemberRepository.findAllByTeam_TeamId(teamId).stream()
                 .filter(m -> !m.getUser().getUserId().equals(userId))
-                .sorted(java.util.Comparator.comparing(TeamMember::getJoinedAt).thenComparing(TeamMember::getTeamMemberId)).toList();
-        if(remaining.isEmpty()) {
+                .sorted(java.util.Comparator.comparing(TeamMember::getJoinedAt).thenComparing(TeamMember::getTeamMemberId))
+                .toList();
+        if (remaining.isEmpty()) {
             deletion.deleteTeam(teamId);
-            return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId,userId,null,true);
+            return new com.savanna.backend.dto.response.TeamLeaveResponseDto(teamId, userId, null, true);
         }
-        Long newLeader=null;
-        if(member.getRole()==TeamRole.LEADER) {
-            var successor=remaining.get(0);successor.promoteToLeader();newLeader=successor.getUser().getUserId();
+        Long newLeader = null;
+        if (member.getRole() == TeamRole.LEADER) {
+            var successor = remaining.get(0);
+            successor.promoteToLeader();
+            newLeader = successor.getUser().getUserId();
         }
-        // 팀 탈퇴 시 해당 팀에서 받은 미응답 제안 정리
-        proposalRecipientRepository.deletePendingByUserAndTeam(
-                userId,
-                teamId,
-                ProposalRecipientStatus.PENDING
-        );
 
-        // 응답 이력은 보존하고 응답 권한 무효화
-        proposalRecipientRepository
-                .findUnrevokedByUserAndTeam(userId, teamId)
-                .forEach(recipient -> recipient.revoke());
+        // 1. 탈퇴자가 해당 팀에서 받은 모든 제안 응답 삭제
+        proposalRecipientRepository.deleteAllByUserAndTeam(userId, teamId);
 
-        // 팀 소속 삭제
+        // 2. 탈퇴자가 해당 팀에 보낸 제안의 수신자 기록 삭제 (FK 방지)
+        proposalRecipientRepository.deleteAllByProposalSenderAndTeam(userId, teamId);
+
+        // 3. 탈퇴자가 해당 팀에 보낸 제안 삭제 (Expedition은 유지되므로 오아시스 공고 보존)
+        proposalRepository.deleteAllBySenderAndTeam(userId, teamId);
+
+        // 4. 팀 소속 삭제
         teamMemberRepository.delete(member);
         teamMemberRepository.flush();
 
